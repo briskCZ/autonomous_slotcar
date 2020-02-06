@@ -1,0 +1,6 @@
+{
+    "sketch": "slotcar.ino",
+    "board": "arduino:mbed:nano33ble",
+    "output": "../build",
+    "port": "COM3"
+}

@@ -1,0 +1,16 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "C:\\Users\\brisk\\AppData\\Local\\Arduino15\\packages\\arduino\\tools\\**",
+                "C:\\Users\\brisk\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed\\1.1.4\\**"
+            ],
+            "forcedInclude": [
+                "C:\\Users\\brisk\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed\\1.1.4\\cores\\arduino\\Arduino.h"
+            ],
+            "intelliSenseMode": "msvc-x64"
+        }
+    ],
+    "version": 4
+}
