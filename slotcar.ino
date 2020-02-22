@@ -27,24 +27,30 @@
 // Variables
 int state = 0;  // 0 - first slow lap, 1 = fast driving
 
-class SdCard{
+float arr[100] = {0};
+
+class SDcard : SDClass{
     private:
-       bool initialized = false;
-       File file;
-    
+        bool initialized = false;
+        File file;
+
     public:
         void setup(){
-            if(SD.begin(CS)){
+            if(begin(CS)){
                 initialized = true;
             }
         }
 
-        void write(String string){
+        void writeOnce(String string){
             if(initialized){
-                file = SD.open("log_file.txt", FILE_WRITE);
+                file = open("log_file.txt", FILE_WRITE);
                 file.print(string);
                 file.close();                
             }
+        }
+
+        bool isInicialized(){
+            return initialized;
         }
 };
 
@@ -117,7 +123,7 @@ class Hall {
 // TODO: class Led ....
 
 Motor motor;
-SdCard sd;
+SDcard sd;
 Hall hall;
 
 void setup() {
@@ -129,10 +135,10 @@ void setup() {
     motor.setup();
     sd.setup();
 
-    sd.write("================================ NEW LOG ================================\n\n");
+    sd.writeOnce("================================ NEW LOG ================================\n\n");
 
     if (!IMU.begin()) {
-        sd.write("IMU inicialization failed!");
+        sd.writeOnce("IMU inicialization failed!");
         // TODO: do something with lights to signal failure
     }
 
@@ -157,6 +163,15 @@ void loop() {
 
     if(state == 1){
         motor.brake();
+
+        if(sd.isInicialized()){
+            /*sd.open();
+            for(int i = 0; i < 100; i++){
+                sd.write(String(arr[i]) + "/n");
+            }
+            sd.close();*/
+        }
+
     }
 
 }
