@@ -18,6 +18,9 @@
         "iosfwd": "cpp",
         "new": "cpp",
         "sstream": "cpp",
-        "streambuf": "cpp"
+        "streambuf": "cpp",
+        "mstd_iterator": "cpp",
+        "string": "cpp",
+        "string_view": "cpp"
     }
 }

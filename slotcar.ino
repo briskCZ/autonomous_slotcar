@@ -27,9 +27,14 @@
 #define N_AVG_SAMPLES 8
 #define N_CAL_SAMPLES 100
 
-// Variables
-int state = 0;  // 0 - first slow lap, 1 = fast driving
+#define DRIVEDATA_LENGTH 100
 
+// TODO: class Led ....
+
+struct DriveData {
+  int y_acc;
+  int rotations;
+};
 
 class SDcard : SDClass{
     private:
@@ -50,6 +55,7 @@ class SDcard : SDClass{
                 file.close();                
             }
         }
+
         bool isInicialized(){
             return initialized;
         }
@@ -63,6 +69,19 @@ class SDcard : SDClass{
         }
         void closeFile(){
             file.close();
+        }
+
+        void writeDriveData(DriveData *arr){
+            if(isInicialized()){
+                openFile();
+
+                for(int i = 0; i < DRIVEDATA_LENGTH; i++){
+                    write( String(arr[i].y_acc) + "\t" + String(arr[i].rotations) + "\n");
+                }
+
+
+                closeFile();
+            }
         }
 };
 
@@ -117,7 +136,7 @@ class Hall {
 
         if(value > TRESHOLD_HIGH && can_count){
             rotations ++;
-            traveled_distance = rotations * tire_circumference;
+            traveled_distance = countDistance(rotations);
             can_count = false;
         }
 
@@ -126,8 +145,16 @@ class Hall {
         }
     }
 
-    int getDistance(){
+    int getRotations(){
+        return rotations;
+    }
+
+    int getTraveledDistance(){
         return traveled_distance;
+    }
+
+    int countDistance(int turns){
+        return turns * tire_circumference;
     }
 
 };
@@ -204,8 +231,10 @@ class Accelerometer {
         }
 };
 
+// Variables
+int state = 2;  // 0 - first slow lap, 1 = fast driving, 2 = test state
 
-// TODO: class Led ....
+DriveData dd_arr[DRIVEDATA_LENGTH];
 
 Motor motor;
 SDcard sd;
@@ -226,14 +255,13 @@ void setup() {
     acc.calibrate();
 
     Serial.begin(9600);
-
 }
 
 void loop() {
 
     hall.loop();
 
-    if(hall.getDistance() > TRACK_LENGTH){
+    if(hall.getTraveledDistance() > TRACK_LENGTH){
         state = 1;
     }
 
@@ -251,5 +279,14 @@ void loop() {
 
     if(state == 1){
         motor.brake();
+    }
+
+    if(state == 2){ // Test state
+        dd_arr[0].rotations = 5;
+        dd_arr[0].y_acc = 88;
+        dd_arr[5].rotations = 42;
+        dd_arr[88].y_acc = 69;
+        sd.writeDriveData(dd_arr);
+        state = 3;
     }
 }
