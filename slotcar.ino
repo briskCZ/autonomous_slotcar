@@ -24,10 +24,12 @@
 // SD card
 #define CS 10
 
+#define N_AVG_SAMPLES 8
+#define N_CAL_SAMPLES 100
+
 // Variables
 int state = 0;  // 0 - first slow lap, 1 = fast driving
 
-float arr[100] = {0};
 
 class SDcard : SDClass{
     private:
@@ -48,9 +50,19 @@ class SDcard : SDClass{
                 file.close();                
             }
         }
-
         bool isInicialized(){
             return initialized;
+        }
+
+        void write(String string){
+            file.print(string);
+        }
+
+        void openFile(){
+            file = open("log_file.txt", FILE_WRITE);
+        }
+        void closeFile(){
+            file.close();
         }
 };
 
@@ -120,11 +132,85 @@ class Hall {
 
 };
 
+class Accelerometer {
+    private:
+    int x,y;
+
+    int x_avg_arr[N_AVG_SAMPLES];
+    int y_avg_arr[N_AVG_SAMPLES];
+    int avg_arr_p;
+
+    int x_cal;
+    int y_cal;
+    int cal_counter;
+
+
+    public:
+        bool setup(){
+            return IMU.begin();
+        }
+
+        void calibrate(){
+            long x_sum, y_sum;
+
+            while(cal_counter < N_CAL_SAMPLES){
+                if (IMU.accelerationAvailable()) {
+                    IMU.readAcceleration(x, y);
+                    x_sum += x;
+                    y_sum += y;
+                    cal_counter++;
+                }
+          }
+
+        x_cal = x_sum / N_CAL_SAMPLES;
+        y_cal = y_sum / N_CAL_SAMPLES;
+          
+        }
+
+        void loop(){
+            if (IMU.accelerationAvailable()) {
+                IMU.readAcceleration(x, y);
+
+                x -= x_cal;
+                y -= y_cal;
+
+                x_avg_arr[avg_arr_p] = x;
+                y_avg_arr[avg_arr_p] = y;
+                avg_arr_p ++;
+
+                if(avg_arr_p >= N_AVG_SAMPLES){
+                    avg_arr_p = 0;
+                }
+
+                long x_avg_sum = 0;
+                long y_avg_sum = 0;
+
+                for(int i = 0; i < N_AVG_SAMPLES; i++){
+                    x_avg_sum += x_avg_arr[i];
+                    y_avg_sum += y_avg_arr[i];
+                }
+
+                x = x_avg_sum / N_AVG_SAMPLES;
+                y = y_avg_sum / N_AVG_SAMPLES;
+            }
+        }
+
+        int getX(){
+            return x;
+        }
+
+        int getY(){
+            return y;
+        }
+};
+
+
 // TODO: class Led ....
 
 Motor motor;
 SDcard sd;
 Hall hall;
+Accelerometer acc;
 
 void setup() {
     pinMode(LED_1, OUTPUT);
@@ -134,13 +220,12 @@ void setup() {
 
     motor.setup();
     sd.setup();
-
     sd.writeOnce("================================ NEW LOG ================================\n\n");
 
-    if (!IMU.begin()) {
-        sd.writeOnce("IMU inicialization failed!");
-        // TODO: do something with lights to signal failure
-    }
+    acc.setup();
+    acc.calibrate();
+
+    Serial.begin(9600);
 
 }
 
@@ -153,25 +238,18 @@ void loop() {
     }
 
     if(state == 0){
-        motor.drive(45);
+        // motor.drive(45);
 
-        float x,y,z;    // x - front and back, y - left and right, z - up and down
-        if (IMU.accelerationAvailable()) {
-            IMU.readAcceleration(x, y, z);
-        }
+        acc.loop();
+
+        Serial.print(acc.getX());
+        Serial.print(',');
+        Serial.print(acc.getY());
+        Serial.print('\n');
+
     }
 
     if(state == 1){
         motor.brake();
-
-        if(sd.isInicialized()){
-            /*sd.open();
-            for(int i = 0; i < 100; i++){
-                sd.write(String(arr[i]) + "/n");
-            }
-            sd.close();*/
-        }
-
     }
-
 }
