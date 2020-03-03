@@ -27,13 +27,18 @@
 #define N_AVG_SAMPLES 8
 #define N_CAL_SAMPLES 100
 
-#define DRIVEDATA_LENGTH 100
+#define DRIVEDATA_LENGTH 888
 
 // TODO: class Led ....
 
 struct DriveData {
-  int y_acc;
+  int side_acc;
   int rotations;
+};
+
+struct AccData {
+  int x;
+  int y;
 };
 
 class SDcard : SDClass{
@@ -76,7 +81,7 @@ class SDcard : SDClass{
                 openFile();
 
                 for(int i = 0; i < DRIVEDATA_LENGTH; i++){
-                    write( String(arr[i].y_acc) + "\t" + String(arr[i].rotations) + "\n");
+                    write( String(arr[i].side_acc) + "\t" + String(arr[i].rotations) + "\n");
                 }
 
 
@@ -149,12 +154,20 @@ class Hall {
         return rotations;
     }
 
+    void resetRotations(){
+        rotations = 0;
+    }
+
     int getTraveledDistance(){
         return traveled_distance;
     }
 
     int countDistance(int turns){
         return turns * tire_circumference;
+    }
+
+    int getValue(){
+        return value;
     }
 
 };
@@ -171,8 +184,11 @@ class Accelerometer {
     int y_cal;
     int cal_counter;
 
-
+    
     public:
+
+        bool new_data = false;
+
         bool setup(){
             return IMU.begin();
         }
@@ -187,10 +203,10 @@ class Accelerometer {
                     y_sum += y;
                     cal_counter++;
                 }
-          }
+            }
 
-        x_cal = x_sum / N_CAL_SAMPLES;
-        y_cal = y_sum / N_CAL_SAMPLES;
+            x_cal = x_sum / N_CAL_SAMPLES;
+            y_cal = y_sum / N_CAL_SAMPLES;
           
         }
 
@@ -198,9 +214,11 @@ class Accelerometer {
             if (IMU.accelerationAvailable()) {
                 IMU.readAcceleration(x, y);
 
+                // Subtracting the calibrated value
                 x -= x_cal;
                 y -= y_cal;
 
+                // Averaging
                 x_avg_arr[avg_arr_p] = x;
                 y_avg_arr[avg_arr_p] = y;
                 avg_arr_p ++;
@@ -219,6 +237,16 @@ class Accelerometer {
 
                 x = x_avg_sum / N_AVG_SAMPLES;
                 y = y_avg_sum / N_AVG_SAMPLES;
+
+                // Tresholding
+                if(abs(x) < 100){
+                    x = 0;
+                }
+                if(abs(y) < 100){
+                    y = 0;
+                }
+
+                new_data = true;
             }
         }
 
@@ -229,12 +257,24 @@ class Accelerometer {
         int getY(){
             return y;
         }
+
+        AccData getData(){
+            AccData data;
+            data.x = x;
+            data.y = y;
+
+            return data;
+        }
+
+        
 };
 
 // Variables
-int state = 2;  // 0 - first slow lap, 1 = fast driving, 2 = test state
+int state = 0;  // 0 - first slow lap, 1 = fast driving, 2 = test state
+
 
 DriveData dd_arr[DRIVEDATA_LENGTH];
+int dd_arr_p = 0;
 
 Motor motor;
 SDcard sd;
@@ -242,6 +282,12 @@ Hall hall;
 Accelerometer acc;
 
 void setup() {
+
+    // Dont run on table -_-
+    if (analogRead(HALL) > 500){
+        state = -1;
+    }
+
     pinMode(LED_1, OUTPUT);
     pinMode(LED_2, OUTPUT);
     pinMode(LED_3, OUTPUT);
@@ -259,34 +305,63 @@ void setup() {
 
 void loop() {
 
+
+
     hall.loop();
 
-    if(hall.getTraveledDistance() > TRACK_LENGTH){
+    /*if(hall.getTraveledDistance() >= TRACK_LENGTH){
         state = 1;
-    }
+        dd_arr_p = 0;
+        hall.resetRotations();
+    }*/
 
     if(state == 0){
-        // motor.drive(45);
+
+        // Drive with constant speed
+        //motor.drive(60);
 
         acc.loop();
 
-        Serial.print(acc.getX());
+        if(acc.new_data){
+            AccData data = acc.getData();
+            acc.new_data = false;
+
+            if(abs(data.x) >= 0 && abs(data.x) <= 200){
+                motor.drive(200);
+            }else if(abs(data.x) > 500 && abs(data.x) <= 1000){
+                motor.brake();
+                motor.drive(60);
+            }else{
+                motor.drive(42);
+            }
+
+
+
+            /*dd_arr[dd_arr_p].side_acc = data.x;
+            dd_arr[dd_arr_p].rotations = hall.getRotations();
+            dd_arr_p ++; // TODO: ošetřit šahání mimo pole?*/
+        }
+
+        /*Serial.print(acc.getX());
         Serial.print(',');
         Serial.print(acc.getY());
-        Serial.print('\n');
+        Serial.print('\n');*/
 
     }
 
     if(state == 1){
-        motor.brake();
-    }
 
-    if(state == 2){ // Test state
-        dd_arr[0].rotations = 5;
-        dd_arr[0].y_acc = 88;
-        dd_arr[5].rotations = 42;
-        dd_arr[88].y_acc = 69;
-        sd.writeDriveData(dd_arr);
-        state = 3;
+        int value = dd_arr[dd_arr_p].side_acc;
+        dd_arr_p ++;
+
+
+        if(abs(value) >= 0 && abs(value) <= 200){
+            motor.drive(150);
+        }else if(abs(value) > 200 && abs(value) <= 500){
+            motor.drive(88);
+        }else{
+            motor.drive(42);
+        }
+
     }
 }
