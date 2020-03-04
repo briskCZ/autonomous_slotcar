@@ -36,7 +36,7 @@ struct DriveData {
   int rotations;
 };
 
-struct AccData {
+struct Tuple {
   int x;
   int y;
 };
@@ -158,6 +158,10 @@ class Hall {
         rotations = 0;
     }
 
+    void setRotations(int number){
+        rotations = number;
+    }
+
     int getTraveledDistance(){
         return traveled_distance;
     }
@@ -258,8 +262,8 @@ class Accelerometer {
             return y;
         }
 
-        AccData getData(){
-            AccData data;
+        Tuple getData(){
+            Tuple data;
             data.x = x;
             data.y = y;
 
@@ -276,6 +280,8 @@ int state = 0;  // 0 - first slow lap, 1 = fast driving, 2 = test state
 DriveData dd_arr[DRIVEDATA_LENGTH];
 int dd_arr_p = 0;
 
+Tuple until_corner[10];
+int corner_p = 0;
 Motor motor;
 SDcard sd;
 Hall hall;
@@ -300,18 +306,16 @@ void setup() {
     acc.setup();
     acc.calibrate();
 
-    Serial.begin(9600);
 }
 
 void loop() {
-
-
 
     hall.loop();
 
     if(hall.getTraveledDistance() >= TRACK_LENGTH){
         state = 1;
         dd_arr_p = 0;
+        corner_p = 0;
         hall.resetRotations();
     }
 
@@ -323,23 +327,63 @@ void loop() {
         acc.loop();
 
         if(acc.new_data){
-            AccData data = acc.getData();
+            Tuple data = acc.getData();
             acc.new_data = false;
+
+            int rotations = hall.getRotations();
+
             dd_arr[dd_arr_p].side_acc = data.x;
-            dd_arr[dd_arr_p].rotations = hall.getRotations();
+            dd_arr[dd_arr_p].rotations = rotations;
             dd_arr_p ++; // TODO: ošetřit šahání mimo pole?
 
+            if(abs(data.x) >= 1500){
+                if(until_corner[corner_p].x == 0){
+                    until_corner[corner_p].x = rotations;
+                }
+            }
+
+            if(abs(data.x) <= 300){
+                if(until_corner[corner_p].x != 0 && until_corner[corner_p].y == 0){
+                    until_corner[corner_p].y = rotations;
+                    corner_p++;
+                }
+            }
+
         }
-
-        /*Serial.print(acc.getX());
-        Serial.print(',');
-        Serial.print(acc.getY());
-        Serial.print('\n');*/
-
     }
 
     if(state == 1){
+        hall.loop();
+        acc.loop();
 
-        motor.brake();
+        // Dokud jede na rovince a nedojede do zatacky
+        if(until_corner[corner_p].x - hall.getRotations() > 1){
+            motor.drive(120);
+        }
+
+        // tesne pred zatackou brzdi
+        if(until_corner[corner_p].x - hall.getRotations() <= 1 && until_corner[corner_p].x - hall.getRotations() >= 0){
+            motor.brake();
+        }
+
+        // zatacku projizdi pomalej
+        if(hall.getRotations() > until_corner[corner_p].x && hall.getRotations() < until_corner[corner_p].y){
+            motor.drive(60);
+        }
+
+        // vyjezd ze zatackyy
+        if(hall.getRotations() == until_corner[corner_p].y){
+            hall.setRotations(until_corner[corner_p].y);
+            corner_p ++;
+        }
+
+        // Reset hodnot po projeti kola
+        if(until_corner[corner_p].x == 0 && until_corner[corner_p].y == 0){
+            corner_p = 0;
+        }
+        if(hall.getTraveledDistance() == TRACK_LENGTH){
+            hall.resetRotations();
+        }
+
     }
 }
