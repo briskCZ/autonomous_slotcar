@@ -288,6 +288,11 @@ int dd_arr_p = 0;
 
 Corner corners[10];
 int corner_p = 0;
+long corner_avg = 0;
+int corner_samples = 0;
+
+
+
 Motor motor;
 SDcard sd;
 Hall hall;
@@ -342,22 +347,30 @@ void loop() {
             dd_arr[dd_arr_p].rotations = rotations;
             dd_arr_p ++; // TODO: ošetřit šahání mimo pole?
 
-            if(abs(data.x) >= 2000){
+            if(abs(data.x) >= 1000){
                 if(corners[corner_p].start_rotations == 0){
                     corners[corner_p].start_rotations = rotations;
                 }
 
-                // TODO: nejak prumerovaat zatacku a z to hodnoty pak urcit jak je ostra?
-                if(abs(data.x) < 3500){
-                    corners[corner_p].severity = 2;
-                }else{
-                    corners[corner_p].severity = 3;
-                }
+                corner_avg += abs(data.x);
+                corner_samples ++;
             }
 
-            if(abs(data.x) <= 300){
+            if(abs(data.x) <= 500){
                 if(corners[corner_p].start_rotations != 0 && corners[corner_p].end_rotations == 0){
                     corners[corner_p].end_rotations = rotations;
+                    
+                    // Vypočítá průměr hodnot v zatáčce a určí podle nich jak je ostrá
+                    corner_avg /= corner_samples;
+                    if(corner_avg < 3500){
+                        corners[corner_p].severity = 2;
+                    }else{
+                        corners[corner_p].severity = 3;
+                    }
+                    
+                    // Připraví hodnoty na další průchod smyčkou
+                    corner_avg = 0;
+                    corner_samples = 0;
                     corner_p++;
                 }
             }
@@ -382,7 +395,7 @@ void loop() {
         // zatacku projizdi pomalej
         if(hall.getRotations() > corners[corner_p].start_rotations && hall.getRotations() < corners[corner_p].end_rotations){
             if(corners[corner_p].severity == 2){
-                motor.drive(70);
+                motor.drive(60);
             }
             if(corners[corner_p].severity == 3){
                 motor.brake();
@@ -404,5 +417,11 @@ void loop() {
             hall.resetRotations();
         }
 
+    }
+
+    if(state == 2){
+        motor.brake();
+        sd.writeDriveData(dd_arr);
+        while(42);
     }
 }
