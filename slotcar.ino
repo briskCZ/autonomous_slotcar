@@ -29,6 +29,9 @@
 
 #define DRIVEDATA_LENGTH 888
 
+// Algorithm constants
+#define BRAKE_ZONE_LENGTH 1
+
 // TODO: class Led ....
 
 struct DriveData {
@@ -42,9 +45,9 @@ struct Tuple {
 };
 
 struct Corner {
-  int start_rotations;
-  int end_rotations;
-  int severity;
+  int start_rotations = -1;
+  int end_rotations = -1;
+  int severity = -1;
 };
 
 class SDcard : SDClass{
@@ -290,7 +293,7 @@ Corner corners[10];
 int corner_p = 0;
 long corner_avg = 0;
 int corner_samples = 0;
-
+bool last_corner = false;
 
 
 Motor motor;
@@ -323,7 +326,7 @@ void loop() {
 
     hall.loop();
 
-    if(hall.getTraveledDistance() >= TRACK_LENGTH){
+    if(hall.getTraveledDistance() >= TRACK_LENGTH && state == 0){
         state = 1;
         dd_arr_p = 0;
         corner_p = 0;
@@ -338,17 +341,18 @@ void loop() {
         acc.loop();
 
         if(acc.new_data){
+            // Get new data and write them to DriveData array
             Tuple data = acc.getData();
             acc.new_data = false;
-
             int rotations = hall.getRotations();
 
             dd_arr[dd_arr_p].side_acc = data.x;
             dd_arr[dd_arr_p].rotations = rotations;
             dd_arr_p ++; // TODO: ošetřit šahání mimo pole?
 
+            // If a corner is detected: write number of rotations from start to begining of the corner
             if(abs(data.x) >= 1000){
-                if(corners[corner_p].start_rotations == 0){
+                if(corners[corner_p].start_rotations == -1){
                     corners[corner_p].start_rotations = rotations;
                 }
 
@@ -356,25 +360,25 @@ void loop() {
                 corner_samples ++;
             }
 
+            // If acceleration drops and corner ends: write number of rotations from start to the end of the corner
             if(abs(data.x) <= 500){
-                if(corners[corner_p].start_rotations != 0 && corners[corner_p].end_rotations == 0){
+                if(corners[corner_p].start_rotations != -1 && corners[corner_p].end_rotations == -1){
                     corners[corner_p].end_rotations = rotations;
                     
                     // Vypočítá průměr hodnot v zatáčce a určí podle nich jak je ostrá
                     corner_avg /= corner_samples;
-                    if(corner_avg < 3500){
+                    if(corner_avg < 4000){
                         corners[corner_p].severity = 2;
                     }else{
                         corners[corner_p].severity = 3;
                     }
                     
-                    // Připraví hodnoty na další průchod smyčkou
+                    // Připraví hodnoty na další zatáčku
                     corner_avg = 0;
                     corner_samples = 0;
                     corner_p++;
                 }
             }
-
         }
     }
 
@@ -382,46 +386,49 @@ void loop() {
         hall.loop();
         acc.loop();
 
-        // Dokud jede na rovince a nedojede do zatacky
-        if(corners[corner_p].start_rotations - hall.getRotations() > 1){
-            motor.drive(120);
+        int until_corner_start = corners[corner_p].start_rotations - hall.getRotations();
+        int until_corner_end = corners[corner_p].end_rotations - hall.getRotations();
+
+        // Dokud jede na rovince a nedojede do brzdne zony (nebo jede za poslední zatáčkou)
+        if(until_corner_start > BRAKE_ZONE_LENGTH || last_corner){
+            motor.drive(100);
         }
 
-        // tesne pred zatackou brzdi
-        if(corners[corner_p].start_rotations - hall.getRotations() <= 1 && corners[corner_p].start_rotations - hall.getRotations() >= 0){
+        // v brzdne zone brzdi
+        if(until_corner_start <= BRAKE_ZONE_LENGTH && until_corner_start >= 0){
             motor.brake();
         }
 
         // zatacku projizdi pomalej
-        if(hall.getRotations() > corners[corner_p].start_rotations && hall.getRotations() < corners[corner_p].end_rotations){
-            if(corners[corner_p].severity == 2){
-                motor.drive(60);
-            }
-            if(corners[corner_p].severity == 3){
-                motor.brake();
-                while(42); //TEST
-            }
+        if(until_corner_start < 0 && until_corner_end > 0){
+            motor.drive(60);
         }
 
-        // vyjezd ze zatackyy
-        if(corners[corner_p].end_rotations == hall.getRotations()){
-            hall.setRotations(corners[corner_p].end_rotations);
-            corner_p ++;
+        // vyjezd ze zatackyy, pokud existuje dalsi zatacka tak posunout ukazatel, jinak udělat něco aby to jelo
+        if(until_corner_end == 0){
+            if(corners[corner_p + 1 ].start_rotations != -1){
+                corner_p ++;
+            }else{
+                last_corner = true;
+            }
         }
 
         // Reset hodnot po projeti kola
-        if(corners[corner_p].start_rotations == 0 && corners[corner_p].end_rotations == 0){
-            corner_p = 0;
-        }
-        if(hall.getTraveledDistance() == TRACK_LENGTH){
+        if(hall.getTraveledDistance() >= TRACK_LENGTH){
             hall.resetRotations();
+            corner_p = 0;
+            last_corner = false;
         }
+
+        //TODO: pri vyjezdu ze zatack (podle akcelerometru) nastav spravnou hodnotu
 
     }
 
     if(state == 2){
         motor.brake();
-        sd.writeDriveData(dd_arr);
+        for (int i = 0; i < 10; i++){
+            sd.writeOnce(String(corners[i].start_rotations) + "\t" + String(corners[i].end_rotations) + "\t" + String(corners[i].severity) + "\n");
+        }
         while(42);
     }
 }
