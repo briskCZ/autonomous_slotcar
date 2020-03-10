@@ -19,7 +19,7 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 559
+#define TRACK_LENGTH 560
 
 // vnejsi oval - 425
 // vnitrni oval - 364
@@ -27,8 +27,8 @@
 // vnejsi druhy layout - 488
 // vnitrni druhy layout - 426
 
-// vnejsi layout long - 621
-// vnitrni layout long - 559
+// vnejsi layout long - 622
+// vnitrni layout long - 560
 
 
 // SD card
@@ -50,20 +50,32 @@
 // TODO: class Led ....
 
 struct DriveData {
-  int side_acc;
-  int rotations;
+int side_acc;
+int rotations;
 };
 
 struct Tuple {
-  int x;
-  int y;
+    int x;
+    int y;
 };
 
 struct Corner {
-  int start_rotations = -1;
-  int end_rotations = -1;
-  int severity = -1;
+    int start_rotations = -1;
+    int end_rotations = -1;
+    int severity = -1;
 };
+
+enum TrackSectionType { STRAIGHT, BRAKING, CORNER, CORNEREXIT, NONE };
+
+struct TrackSection{
+        int start_position = -1;
+        int end_position = -1;
+        int severity = -1;
+        TrackSectionType type = NONE;
+};
+
+
+
 
 class SDcard : SDClass{
     private:
@@ -311,6 +323,9 @@ int corner_samples = 0;
 bool last_corner = false;
 
 
+TrackSection track[100];
+int track_p = 0;
+
 Motor motor;
 SDcard sd;
 Hall hall;
@@ -340,9 +355,10 @@ void setup() {
 void loop() {
 
     hall.loop();
+    acc.loop();
 
     if(hall.getTraveledDistance() >= TRACK_LENGTH && state == 0){
-        state = 1;
+        state = 2;
         dd_arr_p = 0;
         corner_p = 0;
         hall.resetRotations();
@@ -353,42 +369,86 @@ void loop() {
         // Drive with constant speed
         motor.drive(FIRST_LAP_SPEED);
 
-        acc.loop();
-
         if(acc.new_data){
             // Get new data and write them to DriveData array
             Tuple data = acc.getData();
             acc.new_data = false;
-            int rotations = hall.getRotations();
+            int current_position = hall.getRotations();
 
-            dd_arr[dd_arr_p].side_acc = data.x;
-            dd_arr[dd_arr_p].rotations = rotations;
-            dd_arr_p ++; // TODO: ošetřit šahání mimo pole?
+            //vytvorit zatacku
+            //potom vyjezd z ni pokud je dost dlouha
+            //potom rovinku pokud by byla dlouha
+            //nakonec braking zone pokud byla rovinka dost dlouha
 
-            // If a corner is detected: write number of rotations from start to begining of the corner
+
+            // If a corner is detected
             if(abs(data.x) >= 1000){
-                if(corners[corner_p].start_rotations == -1){
-                    corners[corner_p].start_rotations = rotations;
+                if(track[track_p].type == NONE){    // And track array at current position is empty
+                    
+                    // Create straight if it should be longer than 2
+                    if(track_p - 1 >= 0){
+                        if(current_position - track[track_p - 1].end_position  > 2){
+                            
+                            track[track_p].type = STRAIGHT;
+                            track[track_p].start_position = track[track_p - 1].end_position + 1 ;
+                            track[track_p].end_position = current_position;
+                            
+                            track_p ++;
+                        }
+                    }else if(track_p == 0){ // Create begining straight
+                            
+                        track[track_p].type = STRAIGHT;
+                        track[track_p].start_position = 0 ;
+                        track[track_p].end_position = current_position;
+                        
+                        track_p ++;
+                    }
+
+                    // Create braking zone if previous straight was long enough on the last rotation of straight
+                    if(track_p - 1 >= 0 && track[track_p - 1].type == STRAIGHT && track[track_p - 1].end_position - track[track_p - 1].start_position > 10){
+                        track[track_p].type = BRAKING;
+                        track[track_p].start_position = current_position - 1; //TODO: udelat aby braking zone byla v poslednim dilu rovinky takze zkratit
+                        track[track_p].end_position = current_position; 
+                        track[track_p].severity = 0; //TODO: severity bude delka predchozi rovinky??
+
+                        track_p ++;
+                    }
+
+
+                    // Create corner
+                    track[track_p].type = CORNER;
+                    track[track_p].start_position = track[track_p - 1].start_position + 1;
+
                 }
 
                 corner_avg += abs(data.x);
                 corner_samples ++;
             }
 
-            // If acceleration drops and corner ends: write number of rotations from start to the end of the corner
+            // If acceleration drops and corner ends
             if(abs(data.x) <= 500){
-                if(corners[corner_p].start_rotations != -1 && corners[corner_p].end_rotations == -1){
-                    corners[corner_p].end_rotations = rotations;
+                if(track[track_p].start_position != -1 && track[track_p].end_position == -1){
                     
-                    // Vypočítá průměr hodnot v zatáčce a určí podle nich jak je ostrá
+                    // Fill remaing corner info
+                    track[track_p].end_position = current_position;
                     corner_avg /= corner_samples;
+                    track[track_p].severity = corner_avg;
 
-                    corners[corner_p].severity = corner_avg;
                     
-                    // Připraví hodnoty na další zatáčku
+
+                    // Create corner exit if corner was long enough??
+                    if( track[track_p].type == CORNER && track[track_p].end_position - track[track_p].start_position > 5){
+
+                        track_p++;
+
+                        track[track_p].type = CORNEREXIT;
+                        track[track_p].start_position = current_position + 1;
+                        track[track_p].end_position = current_position + 2;
+                    }
+                    
                     corner_avg = 0;
                     corner_samples = 0;
-                    corner_p++;
+                    track_p++;
                 }
             }
         }
@@ -398,44 +458,13 @@ void loop() {
         hall.loop();
         acc.loop();
 
-        int until_corner_start = corners[corner_p].start_rotations - hall.getRotations();
-        int until_corner_end = corners[corner_p].end_rotations - hall.getRotations();
-
-        if(until_corner_start > BRAKE_ZONE_LENGTH || last_corner){
-            motor.drive(MAX_STRAIGHT_SPEED);
-        }
-
-        if(until_corner_start <= BRAKE_ZONE_LENGTH && until_corner_start >= 0){
-            motor.drive(BRAKING_SPEED);
-        }
-
-        if(until_corner_start < 0 && until_corner_end >= -1){
-            if(corners[corner_p].severity < 3000){
-                motor.drive(CORNER_FASTEST_SPEED);
-            }else if((corners[corner_p].severity > 3000)){
-                motor.drive(CORNER_SLOWEST_SPEED);
-            }
-        }
-
-        if(until_corner_end == -1){
-            if(corners[corner_p + 1 ].start_rotations != -1){
-                corner_p ++;
-            }else{
-                last_corner = true;
-            }
-        }
-
-        if(hall.getTraveledDistance() >= TRACK_LENGTH){
-            hall.resetRotations();
-            corner_p = 0;
-            last_corner = false;
-        }
     }
 
     if(state == 2){
         motor.brake();
-        for (int i = 0; i < 20; i++){
-            sd.writeOnce(String(corners[i].start_rotations) + "\t" + String(corners[i].end_rotations) + "\t" + String(corners[i].severity) + "\n");
+        for (int i = 0; i < 100; i++){
+
+            sd.writeOnce(String(track[i].start_position) + "\t" + String(track[i].end_position) + "\t" + String(track[i].severity) + "\t" + String(track[i].type) + "\n");
         }
         while(42);
     }
