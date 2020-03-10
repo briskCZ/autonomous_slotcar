@@ -19,7 +19,17 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 425
+#define TRACK_LENGTH 559
+
+// vnejsi oval - 425
+// vnitrni oval - 364
+
+// vnejsi druhy layout - 488
+// vnitrni druhy layout - 426
+
+// vnejsi layout long - 621
+// vnitrni layout long - 559
+
 
 // SD card
 #define CS 10
@@ -30,7 +40,12 @@
 #define DRIVEDATA_LENGTH 888
 
 // Algorithm constants
-#define BRAKE_ZONE_LENGTH 1
+#define BRAKE_ZONE_LENGTH 2
+#define BRAKING_SPEED 40
+#define FIRST_LAP_SPEED 60
+#define MAX_STRAIGHT_SPEED 120
+#define CORNER_SLOWEST_SPEED 60
+#define CORNER_FASTEST_SPEED 90
 
 // TODO: class Led ....
 
@@ -289,7 +304,7 @@ int state = 0;  // 0 - first slow lap, 1 = fast driving, 2 = test state
 DriveData dd_arr[DRIVEDATA_LENGTH];
 int dd_arr_p = 0;
 
-Corner corners[10];
+Corner corners[20];
 int corner_p = 0;
 long corner_avg = 0;
 int corner_samples = 0;
@@ -336,7 +351,7 @@ void loop() {
     if(state == 0){
 
         // Drive with constant speed
-        motor.drive(60);
+        motor.drive(FIRST_LAP_SPEED);
 
         acc.loop();
 
@@ -367,11 +382,8 @@ void loop() {
                     
                     // Vypočítá průměr hodnot v zatáčce a určí podle nich jak je ostrá
                     corner_avg /= corner_samples;
-                    if(corner_avg < 4000){
-                        corners[corner_p].severity = 2;
-                    }else{
-                        corners[corner_p].severity = 3;
-                    }
+
+                    corners[corner_p].severity = corner_avg;
                     
                     // Připraví hodnoty na další zatáčku
                     corner_avg = 0;
@@ -389,23 +401,23 @@ void loop() {
         int until_corner_start = corners[corner_p].start_rotations - hall.getRotations();
         int until_corner_end = corners[corner_p].end_rotations - hall.getRotations();
 
-        // Dokud jede na rovince a nedojede do brzdne zony (nebo jede za poslední zatáčkou)
         if(until_corner_start > BRAKE_ZONE_LENGTH || last_corner){
-            motor.drive(100);
+            motor.drive(MAX_STRAIGHT_SPEED);
         }
 
-        // v brzdne zone brzdi
         if(until_corner_start <= BRAKE_ZONE_LENGTH && until_corner_start >= 0){
-            motor.brake();
+            motor.drive(BRAKING_SPEED);
         }
 
-        // zatacku projizdi pomalej
-        if(until_corner_start < 0 && until_corner_end > 0){
-            motor.drive(60);
+        if(until_corner_start < 0 && until_corner_end >= -1){
+            if(corners[corner_p].severity < 3000){
+                motor.drive(CORNER_FASTEST_SPEED);
+            }else if((corners[corner_p].severity > 3000)){
+                motor.drive(CORNER_SLOWEST_SPEED);
+            }
         }
 
-        // vyjezd ze zatackyy, pokud existuje dalsi zatacka tak posunout ukazatel, jinak udělat něco aby to jelo
-        if(until_corner_end == 0){
+        if(until_corner_end == -1){
             if(corners[corner_p + 1 ].start_rotations != -1){
                 corner_p ++;
             }else{
@@ -413,20 +425,16 @@ void loop() {
             }
         }
 
-        // Reset hodnot po projeti kola
         if(hall.getTraveledDistance() >= TRACK_LENGTH){
             hall.resetRotations();
             corner_p = 0;
             last_corner = false;
         }
-
-        //TODO: pri vyjezdu ze zatack (podle akcelerometru) nastav spravnou hodnotu
-
     }
 
     if(state == 2){
         motor.brake();
-        for (int i = 0; i < 10; i++){
+        for (int i = 0; i < 20; i++){
             sd.writeOnce(String(corners[i].start_rotations) + "\t" + String(corners[i].end_rotations) + "\t" + String(corners[i].severity) + "\n");
         }
         while(42);
