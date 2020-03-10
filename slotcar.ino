@@ -190,10 +190,6 @@ class Hall {
         return rotations;
     }
 
-    void resetRotations(){
-        rotations = 0;
-    }
-
     void setRotations(int number){
         rotations = number;
     }
@@ -358,10 +354,10 @@ void loop() {
     acc.loop();
 
     if(hall.getTraveledDistance() >= TRACK_LENGTH && state == 0){
-        state = 2;
+        state = 1;
         dd_arr_p = 0;
-        corner_p = 0;
-        hall.resetRotations();
+        track_p = 0;
+        hall.setRotations(0);
     }
 
     if(state == 0){
@@ -374,12 +370,6 @@ void loop() {
             Tuple data = acc.getData();
             acc.new_data = false;
             int current_position = hall.getRotations();
-
-            //vytvorit zatacku
-            //potom vyjezd z ni pokud je dost dlouha
-            //potom rovinku pokud by byla dlouha
-            //nakonec braking zone pokud byla rovinka dost dlouha
-
 
             // If a corner is detected
             if(abs(data.x) >= 1000){
@@ -405,11 +395,12 @@ void loop() {
                     }
 
                     // Create braking zone if previous straight was long enough on the last rotation of straight
-                    if(track_p - 1 >= 0 && track[track_p - 1].type == STRAIGHT && track[track_p - 1].end_position - track[track_p - 1].start_position > 10){
+                    if(track_p - 1 >= 0 && track[track_p - 1].type == STRAIGHT && track[track_p - 1].end_position - track[track_p - 1].start_position > 5){
                         track[track_p].type = BRAKING;
-                        track[track_p].start_position = current_position - 1; //TODO: udelat aby braking zone byla v poslednim dilu rovinky takze zkratit
+                        track[track_p].start_position = current_position - 1;
+                        track[track_p - 1].end_position -= 2;
                         track[track_p].end_position = current_position; 
-                        track[track_p].severity = 0; //TODO: severity bude delka predchozi rovinky??
+                        track[track_p].severity = track[track_p - 1].end_position - track[track_p - 1].start_position;
 
                         track_p ++;
                     }
@@ -417,7 +408,7 @@ void loop() {
 
                     // Create corner
                     track[track_p].type = CORNER;
-                    track[track_p].start_position = track[track_p - 1].start_position + 1;
+                    track[track_p].start_position = track[track_p - 1].end_position + 1;
 
                 }
 
@@ -445,6 +436,11 @@ void loop() {
                         track[track_p].start_position = current_position + 1;
                         track[track_p].end_position = current_position + 2;
                     }
+
+                    //  Update start position of the first straight so it covers the whole track between last and first corners
+                    if( track[0].type == STRAIGHT){
+                        track[0].start_position = track[track_p].end_position + 1;
+                    }
                     
                     corner_avg = 0;
                     corner_samples = 0;
@@ -456,7 +452,43 @@ void loop() {
 
     if(state == 1){
         hall.loop();
-        acc.loop();
+        
+        TrackSection current_section = track[track_p];
+
+        switch(current_section.type){
+            case STRAIGHT:
+                motor.drive(100);
+                break;
+            
+            case BRAKING:
+                motor.brake();
+                break;
+
+            case CORNER:
+                motor.drive(60);
+                break;
+
+            case CORNEREXIT:
+                motor.drive(75);
+                break;
+
+            default:
+                motor.brake();
+                break;
+
+        }
+
+        if(hall.getRotations() == current_section.end_position){
+            track_p ++;
+            if(track[track_p].type == NONE){
+                track_p = 0;
+            }
+        }
+
+        if(hall.getTraveledDistance() >= TRACK_LENGTH){
+            hall.setRotations(0);
+        }
+
 
     }
 
