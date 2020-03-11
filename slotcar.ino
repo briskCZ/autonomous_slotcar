@@ -19,10 +19,13 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 560
+#define TRACK_LENGTH 563
 
 // vnejsi oval - 425
 // vnitrni oval - 364
+
+// vnejsi dlouhy oval - 563
+// vnitrni dlouhy oval - 502
 
 // vnejsi druhy layout - 488
 // vnitrni druhy layout - 426
@@ -40,12 +43,7 @@
 #define DRIVEDATA_LENGTH 888
 
 // Algorithm constants
-#define BRAKE_ZONE_LENGTH 2
-#define BRAKING_SPEED 40
-#define FIRST_LAP_SPEED 60
-#define MAX_STRAIGHT_SPEED 120
-#define CORNER_SLOWEST_SPEED 60
-#define CORNER_FASTEST_SPEED 90
+
 
 // TODO: class Led ....
 
@@ -59,12 +57,6 @@ struct Tuple {
     int y;
 };
 
-struct Corner {
-    int start_rotations = -1;
-    int end_rotations = -1;
-    int severity = -1;
-};
-
 enum TrackSectionType { STRAIGHT, BRAKING, CORNER, CORNEREXIT, NONE };
 
 struct TrackSection{
@@ -73,9 +65,6 @@ struct TrackSection{
         int severity = -1;
         TrackSectionType type = NONE;
 };
-
-
-
 
 class SDcard : SDClass{
     private:
@@ -168,8 +157,8 @@ class Hall {
         int value;
         bool can_count = true;
         int rotations = 0;
-        const float tire_circumference = 7.4;   // All lenghts are in cm
-        int traveled_distance = 0;
+        float tire_circumference = 7.2;   // All lenghts are in cm
+        float traveled_distance = 0;
     
     public:
     void loop(){
@@ -308,19 +297,16 @@ class Accelerometer {
 // Variables
 int state = 0;  // 0 - first slow lap, 1 = fast driving, 2 = test state
 
-
-DriveData dd_arr[DRIVEDATA_LENGTH];
-int dd_arr_p = 0;
-
-Corner corners[20];
-int corner_p = 0;
 long corner_avg = 0;
 int corner_samples = 0;
-bool last_corner = false;
-
 
 TrackSection track[100];
 int track_p = 0;
+
+int lap_count = 0;
+int last_lap_added = 0;
+
+bool error_coeff_added = false;
 
 Motor motor;
 SDcard sd;
@@ -355,15 +341,18 @@ void loop() {
 
     if(hall.getTraveledDistance() >= TRACK_LENGTH && state == 0){
         state = 1;
-        dd_arr_p = 0;
         track_p = 0;
         hall.setRotations(0);
     }
 
+    /*if(lap_count == 3){
+        state = 2;
+    }*/
+
     if(state == 0){
 
         // Drive with constant speed
-        motor.drive(FIRST_LAP_SPEED);
+        motor.drive(60);
 
         if(acc.new_data){
             // Get new data and write them to DriveData array
@@ -457,7 +446,7 @@ void loop() {
 
         switch(current_section.type){
             case STRAIGHT:
-                motor.drive(100);
+                motor.drive(105);
                 break;
             
             case BRAKING:
@@ -465,11 +454,28 @@ void loop() {
                 break;
 
             case CORNER:
-                motor.drive(60);
+                if(current_section.severity < 3000){
+                    motor.drive(80);
+                }else{
+                    motor.drive(65);
+                }
+                
                 break;
 
             case CORNEREXIT:
-                motor.drive(75);
+                motor.drive(70);
+
+                // Subtracting rotations because of error when counting rotations while driving
+                if(lap_count > 3 && !error_coeff_added){
+                    error_coeff_added = true;
+                    if(lap_count % 8 == 0){
+                        hall.setRotations(hall.getRotations() - 3);
+                    }else{
+                        hall.setRotations(hall.getRotations() - 2);
+                    }
+                    
+                }
+                
                 break;
 
             default:
@@ -487,6 +493,13 @@ void loop() {
 
         if(hall.getTraveledDistance() >= TRACK_LENGTH){
             hall.setRotations(0);
+            
+            
+            if(millis() - last_lap_added > 1000){
+                error_coeff_added = false;
+                lap_count ++;
+                last_lap_added = millis();
+            }
         }
 
 
@@ -496,7 +509,8 @@ void loop() {
         motor.brake();
         for (int i = 0; i < 100; i++){
 
-            sd.writeOnce(String(track[i].start_position) + "\t" + String(track[i].end_position) + "\t" + String(track[i].severity) + "\t" + String(track[i].type) + "\n");
+            sd.writeOnce(String(track[i].start_position) + "\t" + String(track[i].end_position) + "\t" + String(track[i].severity) + "\t" + String(track[i].type));
+            sd.writeOnce("Lap Count: " + String(lap_count) + "\n");
         }
         while(42);
     }
