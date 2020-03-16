@@ -12,6 +12,7 @@
                 "C:\\Users\\briskntb\\Documents\\Arduino\\libraries\\**"
             ],
             "forcedInclude": [
+                "C:\\Users\\brisk\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed\\1.1.2\\cores\\arduino\\Arduino.h",
                 "C:\\Users\\brisk\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed\\1.1.4\\cores\\arduino\\Arduino.h",
                 "C:\\Users\\briskntb\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed\\1.1.2\\cores\\arduino\\Arduino.h",
                 "C:\\Users\\briskntb\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed\\1.1.4\\cores\\arduino\\Arduino.h"
