@@ -19,7 +19,14 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 563
+#define TRACK_LENGTH 502
+
+// Algorithm values
+#define TEMP_COEFF 0 // Pocitat s teplotou??
+#define STRAIGHT_SPEED 100
+#define SLOW_CORNER_SPEED 55
+#define FAST_CORNER_SPEED 65
+#define CORNER_EXIT_SPEED 88
 
 // vnejsi oval - 425
 // vnitrni oval - 364
@@ -446,7 +453,7 @@ void loop() {
 
         switch(current_section.type){
             case STRAIGHT:
-                motor.drive(105);
+                motor.drive(STRAIGHT_SPEED);
                 break;
             
             case BRAKING:
@@ -455,15 +462,15 @@ void loop() {
 
             case CORNER:
                 if(current_section.severity < 3000){
-                    motor.drive(80);
+                    motor.drive(FAST_CORNER_SPEED);
                 }else{
-                    motor.drive(65);
+                    motor.drive(SLOW_CORNER_SPEED);
                 }
                 
                 break;
 
             case CORNEREXIT:
-                motor.drive(70);
+                motor.drive(CORNER_EXIT_SPEED);
 
                 // Subtracting rotations because of error when counting rotations while driving
                 if(lap_count > 3 && !error_coeff_added){
@@ -479,7 +486,7 @@ void loop() {
                 break;
 
             default:
-                motor.brake();
+                motor.drive(40);
                 break;
 
         }
