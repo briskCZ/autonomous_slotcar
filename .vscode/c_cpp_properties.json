@@ -5,6 +5,7 @@
             "includePath": [
                 "C:\\Users\\brisk\\AppData\\Local\\Arduino15\\packages\\arduino\\tools\\**",
                 "C:\\Users\\brisk\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed\\1.1.4\\**",
+                "C:\\Users\\brisk\\Documents\\Arduino\\libraries\\**",
                 "C:\\Users\\briskntb\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed\\1.1.2\\**",
                 "C:\\Users\\briskntb\\AppData\\Local\\Arduino15\\packages\\arduino\\tools\\**",
                 "C:\\Users\\briskntb\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed\\1.1.4\\**",
