@@ -19,7 +19,7 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 454
+#define TRACK_LENGTH 530
 
 // vnejsi oval - 425
 // vnitrni oval - 364
@@ -30,12 +30,12 @@
 // vnejsi layout long - 622
 // vnitrni layout long - 560
 
-// vnejsi doma layout 1 - 516
-// vnitrni doma layout 1  - 454
+// vnejsi doma layout 1 - 592
+// vnitrni doma layout 1  - 530
 
 // Algorithm values
 #define TEMP_COEFF 0 //TODO: Pocitat s teplotou??
-#define STRAIGHT_SPEED 100
+#define STRAIGHT_SPEED 105
 #define SLOW_CORNER_SPEED 60
 #define FAST_CORNER_SPEED 70
 #define CORNER_EXIT_SPEED 65
@@ -368,12 +368,13 @@ void loop() {
                 if(track[track_p].type == NONE){    // And track array at current position is empty
                     
                     // Create straight if it should be longer than 2
+                    //TODO: rovinka může začínat a končit ve stejné vzdálenosti
                     if(track_p - 1 >= 0){
-                        if(current_position - track[track_p - 1].end_position  > 2){
+                        if(current_position - track[track_p - 1].end_position  > 1){
                             
                             track[track_p].type = STRAIGHT;
                             track[track_p].start_position = track[track_p - 1].end_position + 1 ;
-                            track[track_p].end_position = current_position;
+                            track[track_p].end_position = max(current_position,track[track_p].start_position);
                             
                             track_p ++;
                         }
@@ -497,7 +498,7 @@ void loop() {
         if(hall.getTraveledDistance() >= TRACK_LENGTH){
             hall.setRotations(0);
             
-            
+        
             if(millis() - last_lap_added > 1000){
                 error_coeff_added = false;
                 lap_count ++;
