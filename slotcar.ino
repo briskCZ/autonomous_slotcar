@@ -19,14 +19,7 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 502
-
-// Algorithm values
-#define TEMP_COEFF 0 // Pocitat s teplotou??
-#define STRAIGHT_SPEED 100
-#define SLOW_CORNER_SPEED 55
-#define FAST_CORNER_SPEED 65
-#define CORNER_EXIT_SPEED 88
+#define TRACK_LENGTH 454
 
 // vnejsi oval - 425
 // vnitrni oval - 364
@@ -34,23 +27,27 @@
 // vnejsi dlouhy oval - 563
 // vnitrni dlouhy oval - 502
 
-// vnejsi druhy layout - 488
-// vnitrni druhy layout - 426
-
 // vnejsi layout long - 622
 // vnitrni layout long - 560
+
+// vnejsi doma layout 1 - 516
+// vnitrni doma layout 1  - 454
+
+// Algorithm values
+#define TEMP_COEFF 0 //TODO: Pocitat s teplotou??
+#define STRAIGHT_SPEED 100
+#define SLOW_CORNER_SPEED 60
+#define FAST_CORNER_SPEED 70
+#define CORNER_EXIT_SPEED 65
 
 
 // SD card
 #define CS 10
 
-#define N_AVG_SAMPLES 8
+#define N_AVG_SAMPLES 16
 #define N_CAL_SAMPLES 100
 
 #define DRIVEDATA_LENGTH 888
-
-// Algorithm constants
-
 
 // TODO: class Led ....
 
@@ -334,7 +331,10 @@ void setup() {
 
     motor.setup();
     sd.setup();
-    sd.writeOnce("================================ NEW LOG ================================\n\n");
+    
+    if(state != -1){
+        sd.writeOnce("================================ NEW LOG ================================\n\n");
+    }
 
     acc.setup();
     acc.calibrate();
@@ -351,10 +351,6 @@ void loop() {
         track_p = 0;
         hall.setRotations(0);
     }
-
-    /*if(lap_count == 3){
-        state = 2;
-    }*/
 
     if(state == 0){
 
@@ -516,9 +512,10 @@ void loop() {
         motor.brake();
         for (int i = 0; i < 100; i++){
 
-            sd.writeOnce(String(track[i].start_position) + "\t" + String(track[i].end_position) + "\t" + String(track[i].severity) + "\t" + String(track[i].type));
-            sd.writeOnce("Lap Count: " + String(lap_count) + "\n");
+            sd.writeOnce(String(track[i].start_position) + "\t" + String(track[i].end_position) + "\t" + String(track[i].severity) + "\t" + String(track[i].type) + "\n");
+
         }
-        while(42);
+        while (42);
+
     }
 }
