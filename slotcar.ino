@@ -35,8 +35,8 @@
 
 // Algorithm values
 #define SPEED_COEFF 0 //TODO: nějak využít?
-#define STRAIGHT_SPEED 100
-#define SLOW_CORNER_SPEED 60
+#define STRAIGHT_SPEED 105
+#define SLOW_CORNER_SPEED 65
 #define FAST_CORNER_SPEED 75
 #define CORNER_EXIT_SPEED 65
 
@@ -392,6 +392,7 @@ void loop() {
                     if(track_p - 1 >= 0 && track[track_p - 1].type == STRAIGHT){
                         track[track_p].type = BRAKING;
 
+                        //TODO: create longer and shorter braking zones
                         if(track_p == 1){ // Create begining brake zone
                             track[track_p].start_position = current_position - 2;
                             track[track_p - 1].end_position -= 3;
@@ -402,10 +403,6 @@ void loop() {
                             track[track_p - 1].end_position -= 2;
                             track[track_p].end_position = current_position; 
                         }
-                        
-
-                        
-                        //track[track_p].severity = track[track_p - 1].end_position - track[track_p - 1].start_position;
 
                         track_p ++;
                     }
@@ -495,7 +492,6 @@ void loop() {
                 break;
 
             default:
-                motor.drive(40);
                 break;
 
         }
