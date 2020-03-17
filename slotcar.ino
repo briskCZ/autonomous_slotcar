@@ -19,7 +19,7 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 530
+#define TRACK_LENGTH 592
 
 // vnejsi oval - 425
 // vnitrni oval - 364
@@ -34,10 +34,10 @@
 // vnitrni doma layout 1  - 530
 
 // Algorithm values
-#define TEMP_COEFF 0 //TODO: Pocitat s teplotou??
-#define STRAIGHT_SPEED 105
+#define SPEED_COEFF 0 //TODO: nějak využít?
+#define STRAIGHT_SPEED 100
 #define SLOW_CORNER_SPEED 60
-#define FAST_CORNER_SPEED 70
+#define FAST_CORNER_SPEED 75
 #define CORNER_EXIT_SPEED 65
 
 
@@ -378,6 +378,7 @@ void loop() {
                             
                             track_p ++;
                         }
+
                     }else if(track_p == 0){ // Create begining straight
                             
                         track[track_p].type = STRAIGHT;
@@ -387,13 +388,24 @@ void loop() {
                         track_p ++;
                     }
 
-                    // Create braking zone if previous straight was long enough on the last rotation of straight
-                    if(track_p - 1 >= 0 && track[track_p - 1].type == STRAIGHT && track[track_p - 1].end_position - track[track_p - 1].start_position > 5){
+                    // Create braking zone if previous straight was long enough
+                    if(track_p - 1 >= 0 && track[track_p - 1].type == STRAIGHT){
                         track[track_p].type = BRAKING;
-                        track[track_p].start_position = current_position - 1;
-                        track[track_p - 1].end_position -= 2;
-                        track[track_p].end_position = current_position; 
-                        track[track_p].severity = track[track_p - 1].end_position - track[track_p - 1].start_position;
+
+                        if(track_p == 1){ // Create begining brake zone
+                            track[track_p].start_position = current_position - 2;
+                            track[track_p - 1].end_position -= 3;
+                            track[track_p].end_position = current_position; 
+                        }
+                        else if(track[track_p - 1].end_position - track[track_p - 1].start_position > 5){
+                            track[track_p].start_position = current_position - 1;
+                            track[track_p - 1].end_position -= 2;
+                            track[track_p].end_position = current_position; 
+                        }
+                        
+
+                        
+                        //track[track_p].severity = track[track_p - 1].end_position - track[track_p - 1].start_position;
 
                         track_p ++;
                     }
@@ -458,7 +470,7 @@ void loop() {
                 break;
 
             case CORNER:
-                if(current_section.severity < 3000){
+                if(current_section.severity < 4000){
                     motor.drive(FAST_CORNER_SPEED);
                 }else{
                     motor.drive(SLOW_CORNER_SPEED);
@@ -511,9 +523,33 @@ void loop() {
 
     if(state == 2){
         motor.brake();
+        String section = "";
         for (int i = 0; i < 100; i++){
 
-            sd.writeOnce(String(track[i].start_position) + "\t" + String(track[i].end_position) + "\t" + String(track[i].severity) + "\t" + String(track[i].type) + "\n");
+            sd.writeOnce(String(track[i].start_position) + "\t" + String(track[i].end_position) + "\t" + String(track[i].severity) + "\t");
+            switch (track[i].type)
+            {
+            case 0:
+                section = "STRAIGHT";
+                break;
+            case 1:
+                section = "BRAKING";
+                break;
+            case 2:
+                section = "CORNER";
+                break;
+            case 3:
+                section = "C_EXIT";
+                break;
+            case 4:
+                section = "NONE";
+                break;
+            
+            default:
+                break;
+            }
+
+            sd.writeOnce(section + "\n");
 
         }
         while (42);
