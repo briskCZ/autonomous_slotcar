@@ -23,9 +23,8 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 502    // in cm
+#define TRACK_LENGTH 700   // in cm
 
-//TODO: u vnejsich pricitat aspon jednu otocku
 
 // vnejsi oval - 425
 // vnitrni oval - 364
@@ -33,20 +32,17 @@
 // vnejsi dlouhy oval - 563
 // vnitrni dlouhy oval - 502
 
-// vnejsi layout long - 622
-// vnitrni layout long - 560
-
-// vnejsi doma layout 1 - 592
+// vnejsi doma layout 1 - 585
 // vnitrni doma layout 1  - 530
 
-// vnejsi doma layout 2 - 700
-// vnitrni doma layout 2  - 637
+// vnejsi doma layout 2 - 700 //TODO: doladit?
+// vnitrni doma layout 2  - 632
 
 // Algorithm values
 #define STRAIGHT_SPEED 110
 #define SLOW_CORNER_SPEED 65
 #define FAST_CORNER_SPEED 75
-#define CORNER_EXIT_SPEED 75
+#define CORNER_EXIT_SPEED 80
 
 
 // SD card
@@ -514,10 +510,18 @@ void loop() {
                 last_lap_added = millis();
                 
                 // Setting rotations to less than zero because of error when counting rotations while driving
-                hall.setRotations(-2);
-                if(lap_count % 5 == 0){
-                    hall.setRotations(-4);
+                if(TRACK_LENGTH < 600){
+                    hall.setRotations(-2);
+                    if(lap_count % 5 == 0){
+                        hall.setRotations(-4);
+                    }
+                }else{
+                    hall.setRotations(-3);
+                    if(lap_count % 5 == 0){
+                        hall.setRotations(-5);
+                    } 
                 }
+
 
             }
         }
