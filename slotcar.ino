@@ -1,3 +1,7 @@
+//  Autonomous slotcar - uses Arduino Nano 33 BLE
+//  Author: Marek Nesvadba, xnesva06 2020
+//  FIT VUT Brno
+
 #include <SPI.h>
 #include <SD.h>
 #include <Arduino_LSM9DS1.h>
@@ -19,7 +23,9 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 592
+#define TRACK_LENGTH 502    // in cm
+
+//TODO: u vnejsich pricitat aspon jednu otocku
 
 // vnejsi oval - 425
 // vnitrni oval - 364
@@ -33,12 +39,14 @@
 // vnejsi doma layout 1 - 592
 // vnitrni doma layout 1  - 530
 
+// vnejsi doma layout 2 - 700
+// vnitrni doma layout 2  - 637
+
 // Algorithm values
-#define SPEED_COEFF 0 //TODO: nějak využít?
-#define STRAIGHT_SPEED 105
+#define STRAIGHT_SPEED 110
 #define SLOW_CORNER_SPEED 65
 #define FAST_CORNER_SPEED 75
-#define CORNER_EXIT_SPEED 65
+#define CORNER_EXIT_SPEED 75
 
 
 // SD card
@@ -390,21 +398,29 @@ void loop() {
 
                     // Create braking zone if previous straight was long enough
                     if(track_p - 1 >= 0 && track[track_p - 1].type == STRAIGHT){
-                        track[track_p].type = BRAKING;
 
                         //TODO: create longer and shorter braking zones
                         if(track_p == 1){ // Create begining brake zone
+                            track[track_p].type = BRAKING;
                             track[track_p].start_position = current_position - 2;
                             track[track_p - 1].end_position -= 3;
-                            track[track_p].end_position = current_position; 
+                            track[track_p].end_position = current_position;
+                            track_p ++;
+                        }else if(track[track_p - 1].end_position - track[track_p - 1].start_position >= 10){ // Longer STRAIGHT so brake zone is longer
+                            track[track_p].type = BRAKING;
+                            track[track_p].start_position = current_position - 2;
+                            track[track_p - 1].end_position -= 3;
+                            track[track_p].end_position = current_position;
+                            track_p ++;
                         }
-                        else if(track[track_p - 1].end_position - track[track_p - 1].start_position > 5){
+                        else if(track[track_p - 1].end_position - track[track_p - 1].start_position >= 5){
+                            track[track_p].type = BRAKING;
                             track[track_p].start_position = current_position - 1;
                             track[track_p - 1].end_position -= 2;
                             track[track_p].end_position = current_position; 
+                            track_p ++;
                         }
 
-                        track_p ++;
                     }
 
 
@@ -429,7 +445,7 @@ void loop() {
 
                     
 
-                    // Create corner exit if corner was long enough??
+                    // Create corner exit if corner was long enough
                     if( track[track_p].type == CORNER && track[track_p].end_position - track[track_p].start_position > 5){
 
                         track_p++;
@@ -476,19 +492,7 @@ void loop() {
                 break;
 
             case CORNEREXIT:
-                motor.drive(CORNER_EXIT_SPEED);
-
-                // Subtracting rotations because of error when counting rotations while driving
-                if(lap_count > 3 && !error_coeff_added){
-                    error_coeff_added = true;
-                    if(lap_count % 8 == 0){
-                        hall.setRotations(hall.getRotations() - 3);
-                    }else{
-                        hall.setRotations(hall.getRotations() - 2);
-                    }
-                    
-                }
-                
+                motor.drive(CORNER_EXIT_SPEED);                
                 break;
 
             default:
@@ -504,13 +508,17 @@ void loop() {
         }
 
         if(hall.getTraveledDistance() >= TRACK_LENGTH){
-            hall.setRotations(0);
-            
-        
             if(millis() - last_lap_added > 1000){
                 error_coeff_added = false;
                 lap_count ++;
                 last_lap_added = millis();
+                
+                // Setting rotations to less than zero because of error when counting rotations while driving
+                hall.setRotations(-2);
+                if(lap_count % 5 == 0){
+                    hall.setRotations(-4);
+                }
+
             }
         }
 
