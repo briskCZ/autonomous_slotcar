@@ -1,6 +1,7 @@
 //  Autonomous slotcar - uses Arduino Nano 33 BLE
-//  Author: Marek Nesvadba, xnesva06 2020
+//  Author: Marek Nesvadba (xnesva06)
 //  FIT VUT Brno
+//  2020
 
 #include <SPI.h>
 #include <SD.h>
@@ -23,7 +24,7 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 700   // in cm
+#define TRACK_LENGTH 776   // in cm
 
 
 // vnejsi oval - 425
@@ -35,8 +36,11 @@
 // vnejsi doma layout 1 - 585
 // vnitrni doma layout 1  - 530
 
-// vnejsi doma layout 2 - 700 //TODO: doladit?
+// vnejsi doma layout 2 - 700
 // vnitrni doma layout 2  - 632
+
+// vnejsi doma layout 3 - 847
+// vnitrni doma layout 3  - 776
 
 // Algorithm values
 #define STRAIGHT_SPEED 110
@@ -44,21 +48,13 @@
 #define FAST_CORNER_SPEED 75
 #define CORNER_EXIT_SPEED 80
 
-
 // SD card
 #define CS 10
 
 #define N_AVG_SAMPLES 16
 #define N_CAL_SAMPLES 100
 
-#define DRIVEDATA_LENGTH 888
-
 // TODO: class Led ....
-
-struct DriveData {
-int side_acc;
-int rotations;
-};
 
 struct Tuple {
     int x;
@@ -107,19 +103,6 @@ class SDcard : SDClass{
         }
         void closeFile(){
             file.close();
-        }
-
-        void writeDriveData(DriveData *arr){
-            if(isInicialized()){
-                openFile();
-
-                for(int i = 0; i < DRIVEDATA_LENGTH; i++){
-                    write( String(arr[i].side_acc) + "\t" + String(arr[i].rotations) + "\n");
-                }
-
-
-                closeFile();
-            }
         }
 };
 
@@ -226,7 +209,7 @@ class Accelerometer {
             return IMU.begin();
         }
 
-        void calibrate(){
+        void calibrate(){ //TODO: oddělat nepotřebnou osu
             long x_sum, y_sum;
 
             while(cal_counter < N_CAL_SAMPLES){
@@ -243,7 +226,7 @@ class Accelerometer {
           
         }
 
-        void loop(){
+        void loop(){ //TODO: oddělat nepotřebnou osu
             if (IMU.accelerationAvailable()) {
                 IMU.readAcceleration(x, y);
 
