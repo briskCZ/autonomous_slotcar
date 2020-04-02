@@ -8,87 +8,14 @@
 #define IN2 8
 #define PWM 9
 
-// LED
-#define LED_1 2
-#define LED_2 3
-#define LED_3 4
-#define LED_4 5
-
-// Hall sensor
-#define HALL A0
-#define TRESHOLD_HIGH 500
-#define TRESHOLD_LOW 180
-
-#define TRACK_LENGTH 425
-
-// SD card
-#define CS 10
-
-#define N_AVG_SAMPLES 8
+// Accelerometer calibration values
+#define N_AVG_SAMPLES 16
 #define N_CAL_SAMPLES 100
 
-#define DRIVEDATA_LENGTH 888
-
-// TODO: class Led ....
-
-struct DriveData {
-  int side_acc;
-  int rotations;
-};
-
-struct AccData {
-  int x;
-  int y;
-};
-
-class SDcard : SDClass{
-    private:
-        bool initialized = false;
-        File file;
-
-    public:
-        void setup(){
-            if(begin(CS)){
-                initialized = true;
-            }
-        }
-
-        void writeOnce(String string){
-            if(initialized){
-                file = open("log_file.txt", FILE_WRITE);
-                file.print(string);
-                file.close();                
-            }
-        }
-
-        bool isInicialized(){
-            return initialized;
-        }
-
-        void write(String string){
-            file.print(string);
-        }
-
-        void openFile(){
-            file = open("log_file.txt", FILE_WRITE);
-        }
-        void closeFile(){
-            file.close();
-        }
-
-        void writeDriveData(DriveData *arr){
-            if(isInicialized()){
-                openFile();
-
-                for(int i = 0; i < DRIVEDATA_LENGTH; i++){
-                    write( String(arr[i].side_acc) + "\t" + String(arr[i].rotations) + "\n");
-                }
-
-
-                closeFile();
-            }
-        }
-};
+// Algorithm values
+#define STRAIGTH_SPEED 100
+#define CORNER_SLOW_SPEED 60
+#define CORNER_FAST_SPEED 80
 
 class Motor {
     private:
@@ -124,51 +51,6 @@ class Motor {
             analogWrite(PWM,0);
             digitalWrite(STBY, LOW);
         }
-
-};
-
-class Hall {
-    private:
-        int value;
-        bool can_count = true;
-        int rotations = 0;
-        const float tire_circumference = 7.4;   // All lenghts are in cm
-        int traveled_distance = 0;
-    
-    public:
-    void loop(){
-        value = analogRead(HALL);
-
-        if(value > TRESHOLD_HIGH && can_count){
-            rotations ++;
-            traveled_distance = countDistance(rotations);
-            can_count = false;
-        }
-
-        if(value < TRESHOLD_LOW){
-            can_count = true;
-        }
-    }
-
-    int getRotations(){
-        return rotations;
-    }
-
-    void resetRotations(){
-        rotations = 0;
-    }
-
-    int getTraveledDistance(){
-        return traveled_distance;
-    }
-
-    int countDistance(int turns){
-        return turns * tire_circumference;
-    }
-
-    int getValue(){
-        return value;
-    }
 
 };
 
@@ -270,11 +152,7 @@ class Accelerometer {
 };
 
 // Variables
-int state = 0;  // 0 - first slow lap, 1 = fast driving, 2 = test state
-
-
-DriveData dd_arr[DRIVEDATA_LENGTH];
-int dd_arr_p = 0;
+int state = 0;
 
 Motor motor;
 SDcard sd;
@@ -288,37 +166,15 @@ void setup() {
         state = -1;
     }
 
-    pinMode(LED_1, OUTPUT);
-    pinMode(LED_2, OUTPUT);
-    pinMode(LED_3, OUTPUT);
-    pinMode(LED_4, OUTPUT);
-
     motor.setup();
-    sd.setup();
-    sd.writeOnce("================================ NEW LOG ================================\n\n");
 
     acc.setup();
     acc.calibrate();
-
-    Serial.begin(9600);
 }
 
 void loop() {
 
-
-
-    hall.loop();
-
-    /*if(hall.getTraveledDistance() >= TRACK_LENGTH){
-        state = 1;
-        dd_arr_p = 0;
-        hall.resetRotations();
-    }*/
-
     if(state == 0){
-
-        // Drive with constant speed
-        //motor.drive(60);
 
         acc.loop();
 
@@ -327,41 +183,14 @@ void loop() {
             acc.new_data = false;
 
             if(abs(data.x) >= 0 && abs(data.x) <= 200){
-                motor.drive(200);
+                motor.drive(STRAIGTH_SPEED);
             }else if(abs(data.x) > 500 && abs(data.x) <= 1000){
-                motor.brake();
-                motor.drive(60);
+                motor.drive(CORNER_FAST_SPEED);
             }else{
-                motor.drive(42);
+                motor.drive(CORNER_FAST_SPEED);
             }
-
-
-
-            /*dd_arr[dd_arr_p].side_acc = data.x;
-            dd_arr[dd_arr_p].rotations = hall.getRotations();
-            dd_arr_p ++; // TODO: ošetřit šahání mimo pole?*/
-        }
-
-        /*Serial.print(acc.getX());
-        Serial.print(',');
-        Serial.print(acc.getY());
-        Serial.print('\n');*/
-
-    }
-
-    if(state == 1){
-
-        int value = dd_arr[dd_arr_p].side_acc;
-        dd_arr_p ++;
-
-
-        if(abs(value) >= 0 && abs(value) <= 200){
-            motor.drive(150);
-        }else if(abs(value) > 200 && abs(value) <= 500){
-            motor.drive(88);
-        }else{
-            motor.drive(42);
         }
 
     }
+
 }
