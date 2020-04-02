@@ -24,26 +24,11 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 776   // in cm
-
-
-// vnejsi oval - 425
-// vnitrni oval - 364
-
-// vnejsi dlouhy oval - 563
-// vnitrni dlouhy oval - 502
-
-// vnejsi doma layout 1 - 585
-// vnitrni doma layout 1  - 530
-
-// vnejsi doma layout 2 - 700
-// vnitrni doma layout 2  - 632
-
-// vnejsi doma layout 3 - 847
-// vnitrni doma layout 3  - 776
+#define TRACK_LENGTH 780   // in cm
 
 // Algorithm values
-#define STRAIGHT_SPEED 110
+#define FIRST_LAP_SPEED 60
+#define STRAIGHT_SPEED 105
 #define SLOW_CORNER_SPEED 65
 #define FAST_CORNER_SPEED 75
 #define CORNER_EXIT_SPEED 80
@@ -148,8 +133,12 @@ class Hall {
         int value;
         bool can_count = true;
         int rotations = 0;
-        float tire_circumference = 7.2;   // All lenghts are in cm
+        
+        // All lenghts are in cm
+        float base_circumference = 7.2;
+        float tire_circumference_error = 0.0;
         float traveled_distance = 0;
+        float tire_circumference = base_circumference + tire_circumference_error;
     
     public:
     void loop(){
@@ -342,10 +331,10 @@ void loop() {
     if(state == 0){
 
         // Drive with constant speed
-        motor.drive(60);
+        motor.drive(FIRST_LAP_SPEED);
 
         if(acc.new_data){
-            // Get new data and write them to DriveData array
+            // Get new data
             Tuple data = acc.getData();
             acc.new_data = false;
             int current_position = hall.getRotations();
@@ -355,7 +344,6 @@ void loop() {
                 if(track[track_p].type == NONE){    // And track array at current position is empty
                     
                     // Create straight if it should be longer than 2
-                    //TODO: rovinka může začínat a končit ve stejné vzdálenosti
                     if(track_p - 1 >= 0){
                         if(current_position - track[track_p - 1].end_position  > 1){
                             
@@ -378,7 +366,6 @@ void loop() {
                     // Create braking zone if previous straight was long enough
                     if(track_p - 1 >= 0 && track[track_p - 1].type == STRAIGHT){
 
-                        //TODO: create longer and shorter braking zones
                         if(track_p == 1){ // Create begining brake zone
                             track[track_p].type = BRAKING;
                             track[track_p].start_position = current_position - 2;
@@ -402,7 +389,6 @@ void loop() {
 
                     }
 
-
                     // Create corner
                     track[track_p].type = CORNER;
                     track[track_p].start_position = track[track_p - 1].end_position + 1;
@@ -421,8 +407,6 @@ void loop() {
                     track[track_p].end_position = current_position;
                     corner_avg /= corner_samples;
                     track[track_p].severity = corner_avg;
-
-                    
 
                     // Create corner exit if corner was long enough
                     if( track[track_p].type == CORNER && track[track_p].end_position - track[track_p].start_position > 5){
@@ -493,18 +477,26 @@ void loop() {
                 last_lap_added = millis();
                 
                 // Setting rotations to less than zero because of error when counting rotations while driving
-                if(TRACK_LENGTH < 600){
-                    hall.setRotations(-2);
+
+                int error_coeff = -1 * ((TRACK_LENGTH / 300) + (TRACK_LENGTH % 300 != 0));
+                
+                hall.setRotations(error_coeff);
+                    if(lap_count % 3 == 0){
+                        hall.setRotations(error_coeff - 2);
+                    }
+
+
+                /*if(TRACK_LENGTH < 600){
+                    hall.setRotations(error_coeff);
                     if(lap_count % 5 == 0){
-                        hall.setRotations(-4);
+                        hall.setRotations(error_coeff * 2);
                     }
                 }else{
-                    hall.setRotations(-3);
+                    hall.setRotations(error_coeff);
                     if(lap_count % 5 == 0){
-                        hall.setRotations(-5);
+                        hall.setRotations(error_coeff * 2);
                     } 
-                }
-
+                }*/
 
             }
         }
