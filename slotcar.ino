@@ -8,14 +8,24 @@
 #define IN2 8
 #define PWM 9
 
+// Hall sensor
+#define HALL A0
+#define TRESHOLD_HIGH 500
+#define TRESHOLD_LOW 180
+
 // Accelerometer calibration values
 #define N_AVG_SAMPLES 16
 #define N_CAL_SAMPLES 100
 
 // Algorithm values
-#define STRAIGTH_SPEED 100
-#define CORNER_SLOW_SPEED 60
-#define CORNER_FAST_SPEED 80
+#define STRAIGTH_SPEED 85
+#define CORNER_SLOW_SPEED 48
+#define CORNER_FAST_SPEED 70
+
+struct Tuple {
+    int x;
+    int y;
+};
 
 class Motor {
     private:
@@ -140,8 +150,8 @@ class Accelerometer {
             return y;
         }
 
-        AccData getData(){
-            AccData data;
+        Tuple getData(){
+            Tuple data;
             data.x = x;
             data.y = y;
 
@@ -151,11 +161,59 @@ class Accelerometer {
         
 };
 
+class Hall {
+    private:
+        int value;
+        bool can_count = true;
+        int rotations = 0;
+        
+        // All lenghts are in cm
+        float base_circumference = 7.2;
+        float tire_circumference_error = 0.0;
+        float traveled_distance = 0;
+        float tire_circumference = base_circumference + tire_circumference_error;
+    
+    public:
+    void loop(){
+        value = analogRead(HALL);
+
+        if(value > TRESHOLD_HIGH && can_count){
+            rotations ++;
+            traveled_distance = countDistance(rotations);
+            can_count = false;
+        }
+
+        if(value < TRESHOLD_LOW){
+            can_count = true;
+        }
+    }
+
+    int getRotations(){
+        return rotations;
+    }
+
+    void setRotations(int number){
+        rotations = number;
+    }
+
+    int getTraveledDistance(){
+        return traveled_distance;
+    }
+
+    int countDistance(int turns){
+        return turns * tire_circumference;
+    }
+
+    int getValue(){
+        return value;
+    }
+
+};
+
 // Variables
 int state = 0;
 
 Motor motor;
-SDcard sd;
 Hall hall;
 Accelerometer acc;
 
@@ -179,16 +237,20 @@ void loop() {
         acc.loop();
 
         if(acc.new_data){
-            AccData data = acc.getData();
+            Tuple data = acc.getData();
             acc.new_data = false;
+            int x = abs(data.x);
 
-            if(abs(data.x) >= 0 && abs(data.x) <= 200){
+            if(x < 1000){
                 motor.drive(STRAIGTH_SPEED);
-            }else if(abs(data.x) > 500 && abs(data.x) <= 1000){
+            }else if(x > 1000 && x < 4000){
                 motor.drive(CORNER_FAST_SPEED);
             }else{
-                motor.drive(CORNER_FAST_SPEED);
+                motor.drive(CORNER_SLOW_SPEED);
             }
+
+
+
         }
 
     }
