@@ -22,5 +22,6 @@
         "mstd_iterator": "cpp",
         "string": "cpp",
         "string_view": "cpp"
-    }
+    },
+    "python.pythonPath": "C:\\Users\\brisk\\AppData\\Local\\Programs\\Python\\Python38\\python.exe"
 }

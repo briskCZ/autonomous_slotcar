@@ -18,9 +18,7 @@
 #define N_CAL_SAMPLES 100
 
 // Algorithm values
-#define STRAIGTH_SPEED 85
-#define CORNER_SLOW_SPEED 48
-#define CORNER_FAST_SPEED 70
+#define CONSTANT_SPEED 75
 
 struct Tuple {
     int x;
@@ -234,24 +232,7 @@ void loop() {
 
     if(state == 0){
 
-        acc.loop();
-
-        if(acc.new_data){
-            Tuple data = acc.getData();
-            acc.new_data = false;
-            int x = abs(data.x);
-
-            if(x < 1000){
-                motor.drive(STRAIGTH_SPEED);
-            }else if(x > 1000 && x < 4000){
-                motor.drive(CORNER_FAST_SPEED);
-            }else{
-                motor.drive(CORNER_SLOW_SPEED);
-            }
-
-
-
-        }
+        motor.drive(CONSTANT_SPEED);
 
     }
 
