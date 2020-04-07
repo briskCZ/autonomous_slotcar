@@ -33,6 +33,8 @@
 #define FAST_CORNER_SPEED 75
 #define CORNER_EXIT_SPEED 80
 
+#define TRACK_SECTION_LENGHT 100
+
 // SD card
 #define CS 10
 
@@ -275,7 +277,7 @@ class Accelerometer {
 };
 
 // Variables
-int state = 0;  // 0 - first slow lap, 1 = fast driving, 2 = test state
+int state = 0;  // 0 - first slow lap, 1 = fast driving, 2 = debug state
 
 long corner_avg = 0;
 int corner_samples = 0;
