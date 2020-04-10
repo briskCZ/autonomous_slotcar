@@ -24,16 +24,17 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 780   // in cm
+#define TRACK_LENGTH 467  // in cm
 
 // Algorithm values
 #define FIRST_LAP_SPEED 60
-#define STRAIGHT_SPEED 105
-#define SLOW_CORNER_SPEED 65
-#define FAST_CORNER_SPEED 75
-#define CORNER_EXIT_SPEED 80
 
-#define TRACK_SECTION_LENGHT 100
+#define STRAIGHT_SPEED 110
+#define SLOW_CORNER_SPEED 75
+#define FAST_CORNER_SPEED 100
+#define CORNER_EXIT_SPEED 95
+
+#define TRACK_SECTION_LENGTH 100
 
 // SD card
 #define CS 10
@@ -42,11 +43,6 @@
 #define N_CAL_SAMPLES 100
 
 // TODO: class Led ....
-
-struct Tuple {
-    int x;
-    int y;
-};
 
 enum TrackSectionType { STRAIGHT, BRAKING, CORNER, CORNEREXIT, NONE };
 
@@ -138,7 +134,7 @@ class Hall {
         
         // All lenghts are in cm
         float base_circumference = 7.2;
-        float tire_circumference_error = 0.0;
+        float tire_circumference_error = -0.10;
         float traveled_distance = 0;
         float tire_circumference = base_circumference + tire_circumference_error;
     
@@ -181,14 +177,12 @@ class Hall {
 
 class Accelerometer {
     private:
-    int x,y;
+    int x;
 
     int x_avg_arr[N_AVG_SAMPLES];
-    int y_avg_arr[N_AVG_SAMPLES];
     int avg_arr_p;
 
     int x_cal;
-    int y_cal;
     int cal_counter;
 
     
@@ -200,34 +194,30 @@ class Accelerometer {
             return IMU.begin();
         }
 
-        void calibrate(){ //TODO: oddělat nepotřebnou osu
-            long x_sum, y_sum;
+        void calibrate(){
+            long x_sum;
 
             while(cal_counter < N_CAL_SAMPLES){
                 if (IMU.accelerationAvailable()) {
-                    IMU.readAcceleration(x, y);
+                    IMU.readAcceleration(x);
                     x_sum += x;
-                    y_sum += y;
                     cal_counter++;
                 }
             }
 
             x_cal = x_sum / N_CAL_SAMPLES;
-            y_cal = y_sum / N_CAL_SAMPLES;
           
         }
 
-        void loop(){ //TODO: oddělat nepotřebnou osu
+        void loop(){
             if (IMU.accelerationAvailable()) {
-                IMU.readAcceleration(x, y);
+                IMU.readAcceleration(x);
 
                 // Subtracting the calibrated value
                 x -= x_cal;
-                y -= y_cal;
 
                 // Averaging
                 x_avg_arr[avg_arr_p] = x;
-                y_avg_arr[avg_arr_p] = y;
                 avg_arr_p ++;
 
                 if(avg_arr_p >= N_AVG_SAMPLES){
@@ -235,22 +225,16 @@ class Accelerometer {
                 }
 
                 long x_avg_sum = 0;
-                long y_avg_sum = 0;
 
                 for(int i = 0; i < N_AVG_SAMPLES; i++){
                     x_avg_sum += x_avg_arr[i];
-                    y_avg_sum += y_avg_arr[i];
                 }
 
                 x = x_avg_sum / N_AVG_SAMPLES;
-                y = y_avg_sum / N_AVG_SAMPLES;
 
                 // Tresholding
                 if(abs(x) < 100){
                     x = 0;
-                }
-                if(abs(y) < 100){
-                    y = 0;
                 }
 
                 new_data = true;
@@ -259,18 +243,6 @@ class Accelerometer {
 
         int getX(){
             return x;
-        }
-
-        int getY(){
-            return y;
-        }
-
-        Tuple getData(){
-            Tuple data;
-            data.x = x;
-            data.y = y;
-
-            return data;
         }
 
         
@@ -282,7 +254,7 @@ int state = 0;  // 0 - first slow lap, 1 = fast driving, 2 = debug state
 long corner_avg = 0;
 int corner_samples = 0;
 
-TrackSection track[100];
+TrackSection track[TRACK_SECTION_LENGTH];
 int track_p = 0;
 
 int lap_count = 0;
@@ -337,12 +309,12 @@ void loop() {
 
         if(acc.new_data){
             // Get new data
-            Tuple data = acc.getData();
+            double x = acc.getX();
             acc.new_data = false;
             int current_position = hall.getRotations();
 
             // If a corner is detected
-            if(abs(data.x) >= 1000){
+            if(abs(x) >= 1000){
                 if(track[track_p].type == NONE){    // And track array at current position is empty
                     
                     // Create straight if it should be longer than 2
@@ -397,12 +369,12 @@ void loop() {
 
                 }
 
-                corner_avg += abs(data.x);
+                corner_avg += abs(x);
                 corner_samples ++;
             }
 
             // If acceleration drops and corner ends
-            if(abs(data.x) <= 500){
+            if(abs(x) <= 500){
                 if(track[track_p].start_position != -1 && track[track_p].end_position == -1){
                     
                     // Fill remaing corner info
@@ -479,31 +451,14 @@ void loop() {
                 last_lap_added = millis();
                 
                 // Setting rotations to less than zero because of error when counting rotations while driving
-
                 int error_coeff = -1 * ((TRACK_LENGTH / 300) + (TRACK_LENGTH % 300 != 0));
                 
                 hall.setRotations(error_coeff);
-                    if(lap_count % 3 == 0){
-                        hall.setRotations(error_coeff - 2);
-                    }
-
-
-                /*if(TRACK_LENGTH < 600){
-                    hall.setRotations(error_coeff);
-                    if(lap_count % 5 == 0){
-                        hall.setRotations(error_coeff * 2);
-                    }
-                }else{
-                    hall.setRotations(error_coeff);
-                    if(lap_count % 5 == 0){
-                        hall.setRotations(error_coeff * 2);
-                    } 
-                }*/
-
+                if(lap_count % 3 == 0){
+                    hall.setRotations(error_coeff - 2);
+                }
             }
         }
-
-
     }
 
     if(state == 2){
