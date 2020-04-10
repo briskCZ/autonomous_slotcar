@@ -24,7 +24,7 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 467  // in cm
+#define TRACK_LENGTH 530  // in cm
 
 // Algorithm values
 #define FIRST_LAP_SPEED 60
@@ -343,20 +343,15 @@ void loop() {
                     // Create braking zone if previous straight was long enough
                     if(track_p - 1 >= 0 && track[track_p - 1].type == STRAIGHT){
 
-                        if(track_p == 1){ // Create begining brake zone
-                            track[track_p].type = BRAKING;
-                            track[track_p].start_position = current_position - 2;
-                            track[track_p - 1].end_position -= 3;
-                            track[track_p].end_position = current_position;
-                            track_p ++;
-                        }else if(track[track_p - 1].end_position - track[track_p - 1].start_position >= 10){ // Longer STRAIGHT so brake zone is longer
+                        // Create braking zone after first straight or after long straight
+                        if((track_p == 1) || (track[track_p - 1].end_position - track[track_p - 1].start_position >= 10)){
                             track[track_p].type = BRAKING;
                             track[track_p].start_position = current_position - 2;
                             track[track_p - 1].end_position -= 3;
                             track[track_p].end_position = current_position;
                             track_p ++;
                         }
-                        else if(track[track_p - 1].end_position - track[track_p - 1].start_position >= 5){
+                        else if(track[track_p - 1].end_position - track[track_p - 1].start_position >= 5){ // Create braking zone after short straight
                             track[track_p].type = BRAKING;
                             track[track_p].start_position = current_position - 1;
                             track[track_p - 1].end_position -= 2;
@@ -387,7 +382,6 @@ void loop() {
 
                     // Create corner exit if corner was long enough
                     if( track[track_p].type == CORNER && track[track_p].end_position - track[track_p].start_position > 5){
-
                         track_p++;
 
                         track[track_p].type = CORNEREXIT;
