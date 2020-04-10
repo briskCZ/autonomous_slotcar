@@ -36,6 +36,9 @@
 
 #define TRACK_SECTION_LENGTH 100
 
+#define CORNER_BEGIN 1000
+#define CORNER_END 500
+
 // SD card
 #define CS 10
 
@@ -314,7 +317,7 @@ void loop() {
             int current_position = hall.getRotations();
 
             // If a corner is detected
-            if(abs(x) >= 1000){
+            if(abs(x) >= CORNER_BEGIN){
                 if(track[track_p].type == NONE){    // And track array at current position is empty
                     
                     // Create straight if it should be longer than 2
@@ -374,7 +377,7 @@ void loop() {
             }
 
             // If acceleration drops and corner ends
-            if(abs(x) <= 500){
+            if(abs(x) <= CORNER_END){
                 if(track[track_p].start_position != -1 && track[track_p].end_position == -1){
                     
                     // Fill remaing corner info
