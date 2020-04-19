@@ -24,15 +24,20 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 530  // in cm
+#define TRACK_LENGTH 529  // in cm
 
 // Algorithm values
 #define FIRST_LAP_SPEED 60
 
-#define STRAIGHT_SPEED 110
-#define SLOW_CORNER_SPEED 75
+#define STRAIGHT_SPEED 108
+
+#define SLOW_CORNER_SPEED 90
+#define MEDIUM_CORNER_SPEED 95
 #define FAST_CORNER_SPEED 100
-#define CORNER_EXIT_SPEED 95
+#define ULTRA_CORNER_SPEED 105
+
+#define CORNER_EXIT_SPEED 88
+
 
 #define TRACK_SECTION_LENGTH 100
 
@@ -137,7 +142,7 @@ class Hall {
         
         // All lenghts are in cm
         float base_circumference = 7.2;
-        float tire_circumference_error = -0.10;
+        float tire_circumference_error = -0.15;
         float traveled_distance = 0;
         float tire_circumference = base_circumference + tire_circumference_error;
     
@@ -417,11 +422,21 @@ void loop() {
                 break;
 
             case CORNER:
-                if(current_section.severity < 4000){
+
+                if(current_section.severity <= 2500){
+                    motor.drive(ULTRA_CORNER_SPEED);
+                }
+                if(current_section.severity > 2500 && current_section.severity <= 3500){
                     motor.drive(FAST_CORNER_SPEED);
-                }else{
+                }
+                if(current_section.severity > 3500 && current_section.severity <= 4000){
+                    motor.drive(MEDIUM_CORNER_SPEED);
+                }
+                if(current_section.severity > 4000){
                     motor.drive(SLOW_CORNER_SPEED);
                 }
+
+                
                 
                 break;
 
@@ -454,6 +469,7 @@ void loop() {
                 if(lap_count % 3 == 0){
                     hall.setRotations(error_coeff - 2);
                 }
+                
             }
         }
     }
