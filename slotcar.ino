@@ -24,7 +24,7 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 529  // in cm
+#define TRACK_LENGTH 530  // in cm
 
 // Algorithm values
 #define FIRST_LAP_SPEED 60
@@ -411,6 +411,8 @@ void loop() {
         hall.loop();
         
         TrackSection current_section = track[track_p];
+        double acc_x; 
+        int speed;
 
         switch(current_section.type){
             case STRAIGHT:
@@ -422,18 +424,14 @@ void loop() {
                 break;
 
             case CORNER:
+                acc_x = acc.getX();
 
-                if(current_section.severity <= 2500){
-                    motor.drive(ULTRA_CORNER_SPEED);
-                }
-                if(current_section.severity > 2500 && current_section.severity <= 3500){
-                    motor.drive(FAST_CORNER_SPEED);
-                }
-                if(current_section.severity > 3500 && current_section.severity <= 4000){
-                    motor.drive(MEDIUM_CORNER_SPEED);
-                }
-                if(current_section.severity > 4000){
-                    motor.drive(SLOW_CORNER_SPEED);
+                speed = (10000 - abs(acc_x)) / 55;
+
+                if(speed > 50){
+                    motor.drive(speed);
+                }else{
+                    motor.drive(50);
                 }
 
                 
