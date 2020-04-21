@@ -24,19 +24,19 @@
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 529  // in cm
+#define TRACK_LENGTH 640  // in cm
 
 // Algorithm values
 #define FIRST_LAP_SPEED 60
 
-#define STRAIGHT_SPEED 108
+#define STRAIGHT_SPEED 110
 
 #define SLOW_CORNER_SPEED 90
 #define MEDIUM_CORNER_SPEED 95
 #define FAST_CORNER_SPEED 100
 #define ULTRA_CORNER_SPEED 105
 
-#define CORNER_EXIT_SPEED 88
+#define CORNER_EXIT_SPEED 95
 
 
 #define TRACK_SECTION_LENGTH 100
@@ -142,7 +142,7 @@ class Hall {
         
         // All lenghts are in cm
         float base_circumference = 7.2;
-        float tire_circumference_error = -0.15;
+        float tire_circumference_error = -0.25;
         float traveled_distance = 0;
         float tire_circumference = base_circumference + tire_circumference_error;
     
