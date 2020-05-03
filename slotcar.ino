@@ -48,6 +48,8 @@
 #define N_AVG_SAMPLES 16
 #define N_CAL_SAMPLES 100
 
+#define ERROR_CONSTANT 300
+
 // SD card pin
 #define CS 10
 
@@ -499,7 +501,7 @@ void loop() {
                 last_lap_added = millis();
                 
                 // Setting rotations to less than zero because of error when counting rotations while driving
-                int error_coeff = -1 * ((TRACK_LENGTH / 300) + (TRACK_LENGTH % 300 != 0));
+                int error_coeff = -1 * ((TRACK_LENGTH / ERROR_CONSTANT) + (TRACK_LENGTH % ERROR_CONSTANT != 0));  // Expresion in second pair of paretheses is used to round up the result
                 
                 hall.setRotations(error_coeff);
                 if(lap_count % 3 == 0){
