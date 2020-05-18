@@ -40,7 +40,7 @@
 #define CORNER_EXIT_SPEED 88
 
 
-#define TRACK_SECTION_LENGTH 100
+#define TRACK_SECTION_LENGTH_ARR 100
 
 #define CORNER_BEGIN 1000
 #define CORNER_END 500
@@ -300,7 +300,7 @@ int state = 0;  // 0 - first slow lap, 1 = fast driving, 2 = debug state
 long corner_avg = 0;
 int corner_samples = 0;
 
-TrackSection track[TRACK_SECTION_LENGTH];
+TrackSection track[TRACK_SECTION_LENGTH_ARR];
 int track_p = 0;
 
 int lap_count = 0;
