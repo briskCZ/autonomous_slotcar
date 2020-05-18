@@ -1,30 +1,36 @@
 //  Autonomous slotcar - uses Arduino Nano 33 BLE
+//  Bachelor thesis
 //  Author: Marek Nesvadba (xnesva06)
-//  FIT VUT Brno
+//  FIT Brno university of technology
 //  2020
+
+// Version that distinguishes between two severities of turns
 
 #include <SPI.h>
 #include <SD.h>
+
+// Modified version with function that returns data as integer instead of float
 #include <Arduino_LSM9DS1.h>
 
-// Motor driver
+// Motor driver pins
 #define STBY 6
 #define IN1 7
 #define IN2 8
 #define PWM 9
 
-// LED
-#define LED_1 2
-#define LED_2 3
-#define LED_3 4
-#define LED_4 5
+// LED pins
+#define LED_0 2
+#define LED_1 3
+#define LED_2 4
+#define LED_3 5
 
-// Hall sensor
+// Hall sensor pin and values
 #define HALL A0
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
 
-#define TRACK_LENGTH 529  // in cm
+// Track length
+#define TRACK_LENGTH 592  // in cm
 
 // Algorithm values
 #define FIRST_LAP_SPEED 60
@@ -34,18 +40,18 @@
 #define FAST_CORNER_SPEED 75
 #define CORNER_EXIT_SPEED 80
 
-#define TRACK_SECTION_LENGTH 100
+#define TRACK_SECTION_ARR_LENGTH 100
 
 #define CORNER_BEGIN 1000
 #define CORNER_END 500
 
-// SD card
-#define CS 10
-
 #define N_AVG_SAMPLES 16
 #define N_CAL_SAMPLES 100
 
-// TODO: class Led ....
+#define ERROR_CONSTANT 300
+
+// SD card pin
+#define CS 10
 
 enum TrackSectionType { STRAIGHT, BRAKING, CORNER, CORNEREXIT, NONE };
 
@@ -68,6 +74,7 @@ class SDcard : SDClass{
             }
         }
 
+        // Useful for one string
         void writeOnce(String string){
             if(initialized){
                 file = open("log_file.txt", FILE_WRITE);
@@ -80,6 +87,7 @@ class SDcard : SDClass{
             return initialized;
         }
 
+        // Useful for multiple strings
         void write(String string){
             file.print(string);
         }
@@ -129,6 +137,40 @@ class Motor {
 
 };
 
+class LEDs {
+    public:
+
+        void setup(){
+            pinMode(LED_0, OUTPUT); // LR
+            pinMode(LED_1, OUTPUT); // RR
+            pinMode(LED_2, OUTPUT); // LF
+            pinMode(LED_3, OUTPUT); // RF
+        }
+
+        void brake_lights(bool state){
+            digitalWrite(LED_0, state);
+            digitalWrite(LED_1, state);
+        }
+
+        void front_lights(bool state){
+            digitalWrite(LED_2, state);
+            digitalWrite(LED_3, state);
+        }
+
+        // Turn off all lights
+        void turnOff(){
+            digitalWrite(LED_0, LOW);
+            digitalWrite(LED_1, LOW);
+            digitalWrite(LED_2, LOW);
+            digitalWrite(LED_3, LOW);
+        }
+
+        void set(int led, bool state){
+            digitalWrite(led, state);
+        }
+
+};
+
 class Hall {
     private:
         int value;
@@ -136,7 +178,7 @@ class Hall {
         int rotations = 0;
         
         // All lenghts are in cm
-        float base_circumference = 7.2;
+        float base_circumference = 7.1;
         float tire_circumference_error = -0.10;
         float traveled_distance = 0;
         float tire_circumference = base_circumference + tire_circumference_error;
@@ -202,6 +244,7 @@ class Accelerometer {
 
             while(cal_counter < N_CAL_SAMPLES){
                 if (IMU.accelerationAvailable()) {
+                    // Function added to the LSM9DS1 library by author of this code
                     IMU.readAcceleration(x);
                     x_sum += x;
                     cal_counter++;
@@ -214,6 +257,8 @@ class Accelerometer {
 
         void loop(){
             if (IMU.accelerationAvailable()) {
+
+                // Function added to the LSM9DS1 library by author of this code
                 IMU.readAcceleration(x);
 
                 // Subtracting the calibrated value
@@ -269,10 +314,11 @@ Motor motor;
 SDcard sd;
 Hall hall;
 Accelerometer acc;
+LEDs lights;
 
 void setup() {
 
-    // Dont run on table -_-
+    // Dont run on table
     if (analogRead(HALL) > 500){
         state = -1;
     }
@@ -285,6 +331,7 @@ void setup() {
     motor.setup();
     sd.setup();
     
+    // Separator in log file
     if(state != -1){
         sd.writeOnce("================================ NEW LOG ================================\n\n");
     }
@@ -299,13 +346,15 @@ void loop() {
     hall.loop();
     acc.loop();
 
+    // The car travelled through one lap and should switch mode
     if(hall.getTraveledDistance() >= TRACK_LENGTH && state == 0){
         state = 1;
         track_p = 0;
         hall.setRotations(0);
     }
 
-    if(state == 0){
+    if(state == 0){ // Autonomous track mapping
+        lights.front_lights(true);
 
         // Drive with constant speed
         motor.drive(FIRST_LAP_SPEED);
@@ -402,12 +451,15 @@ void loop() {
         }
     }
 
-    if(state == 1){
+    if(state == 1){ // Fast driving 
         hall.loop();
+        lights.front_lights(false);
+        lights.brake_lights(false);
+
         
         TrackSection current_section = track[track_p];
 
-        switch(current_section.type){
+        switch(current_section.type){   // Change speed based on the actual segment
             case STRAIGHT:
                 motor.drive(STRAIGHT_SPEED);
                 break;
@@ -434,14 +486,14 @@ void loop() {
 
         }
 
-        if(hall.getRotations() == current_section.end_position){
+        if(hall.getRotations() == current_section.end_position){    // Switch to next segment when the car is at the end of the current one
             track_p ++;
             if(track[track_p].type == NONE){
                 track_p = 0;
             }
         }
 
-        if(hall.getTraveledDistance() >= TRACK_LENGTH){
+        if(hall.getTraveledDistance() >= TRACK_LENGTH){ // Reset values when the car drives through the whole lap
             if(millis() - last_lap_added > 1000){
                 error_coeff_added = false;
                 lap_count ++;
@@ -458,7 +510,7 @@ void loop() {
         }
     }
 
-    if(state == 2){
+    if(state == 2){ // State that prints debug info to log file on SD card
         motor.brake();
         String section = "";
         for (int i = 0; i < 100; i++){
