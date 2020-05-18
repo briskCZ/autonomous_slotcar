@@ -1,8 +1,18 @@
+//  Autonomous slotcar - uses Arduino Nano 33 BLE
+//  Bachelor thesis
+//  Author: Marek Nesvadba (xnesva06)
+//  FIT Brno university of technology
+//  2020
+
+// Constant speed version
+
 #include <SPI.h>
 #include <SD.h>
+
+// Modified version with function that returns data as integer instead of float
 #include <Arduino_LSM9DS1.h>
 
-// Motor driver
+// Motor driver pins
 #define STBY 6
 #define IN1 7
 #define IN2 8
@@ -114,7 +124,7 @@ Hall hall;
 
 void setup() {
 
-    // Dont run on table -_-
+    // Do not run on table
     if (analogRead(HALL) > 500){
         state = -1;
     }
