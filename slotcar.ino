@@ -8,7 +8,7 @@
 #include <SPI.h>
 #include <SD.h>
 
-// Modified version that returns integers instead of floats
+// Modified version with function that returns data as integer instead of float
 #include <Arduino_LSM9DS1.h>
 
 // Motor driver pins
@@ -53,8 +53,6 @@
 // SD card pin
 #define CS 10
 
-// TODO: class Led ....
-
 enum TrackSectionType { STRAIGHT, BRAKING, CORNER, CORNEREXIT, NONE };
 
 struct TrackSection{
@@ -76,6 +74,7 @@ class SDcard : SDClass{
             }
         }
 
+        // Useful for one string
         void writeOnce(String string){
             if(initialized){
                 file = open("log_file.txt", FILE_WRITE);
@@ -88,6 +87,7 @@ class SDcard : SDClass{
             return initialized;
         }
 
+        // Useful for multiple strings
         void write(String string){
             file.print(string);
         }
@@ -157,6 +157,7 @@ class LEDs {
             digitalWrite(LED_3, state);
         }
 
+        // Turn off all lights
         void turnOff(){
             digitalWrite(LED_0, LOW);
             digitalWrite(LED_1, LOW);
@@ -243,6 +244,7 @@ class Accelerometer {
 
             while(cal_counter < N_CAL_SAMPLES){
                 if (IMU.accelerationAvailable()) {
+                    // Function added to the LSM9DS1 library by author of this code
                     IMU.readAcceleration(x);
                     x_sum += x;
                     cal_counter++;
@@ -255,6 +257,8 @@ class Accelerometer {
 
         void loop(){
             if (IMU.accelerationAvailable()) {
+
+                // Function added to the LSM9DS1 library by author of this code
                 IMU.readAcceleration(x);
 
                 // Subtracting the calibrated value
