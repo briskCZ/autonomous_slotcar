@@ -4,7 +4,7 @@
 //  FIT Brno university of technology
 //  2020
 
-// Version that distinguishes between two severities of turns
+// Version that distinguishes between two severities of corners
 
 #include <SPI.h>
 #include <SD.h>
@@ -302,7 +302,7 @@ int state = 0;  // 0 - first slow lap, 1 = fast driving, 2 = debug state
 long corner_avg = 0;
 int corner_samples = 0;
 
-TrackSection track[TRACK_SECTION_LENGTH];
+TrackSection track[TRACK_SECTION_ARR_LENGTH];
 int track_p = 0;
 
 int lap_count = 0;
@@ -322,11 +322,6 @@ void setup() {
     if (analogRead(HALL) > 500){
         state = -1;
     }
-
-    pinMode(LED_1, OUTPUT);
-    pinMode(LED_2, OUTPUT);
-    pinMode(LED_3, OUTPUT);
-    pinMode(LED_4, OUTPUT);
 
     motor.setup();
     sd.setup();
@@ -466,6 +461,7 @@ void loop() {
             
             case BRAKING:
                 motor.brake();
+                lights.brake_lights(true);
                 break;
 
             case CORNER:
