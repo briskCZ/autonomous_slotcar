@@ -9,9 +9,6 @@
 #include <SPI.h>
 #include <SD.h>
 
-// Modified version with function that returns data as integer instead of float
-#include <Arduino_LSM9DS1.h>
-
 // Motor driver pins
 #define STBY 6
 #define IN1 7
@@ -22,10 +19,6 @@
 #define HALL A0
 #define TRESHOLD_HIGH 500
 #define TRESHOLD_LOW 180
-
-// Accelerometer calibration values
-#define N_AVG_SAMPLES 16
-#define N_CAL_SAMPLES 100
 
 // Algorithm values
 #define CONSTANT_SPEED 75
@@ -74,8 +67,8 @@ class Hall {
         int rotations = 0;
         
         // All lenghts are in cm
-        float base_circumference = 7.2;
-        float tire_circumference_error = 0.0;
+        float base_circumference = 7.1;
+        float tire_circumference_error = -0.10;
         float traveled_distance = 0;
         float tire_circumference = base_circumference + tire_circumference_error;
     
